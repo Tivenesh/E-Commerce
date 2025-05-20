@@ -1,6 +1,6 @@
 // lib/main.dart
 import 'package:flutter/material.dart';
-import 'presentation/screens/account_page.dart';
+import 'presentation/screen/account_page.dart';
 
 void main() {
   runApp(const MyApp());
