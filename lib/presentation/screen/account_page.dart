@@ -1,6 +1,7 @@
 // lib/presentation/screens/account_page.dart
 import 'package:e_commerce/presentation/screen/notifications_page.dart';
 import 'package:e_commerce/presentation/screen/order_page.dart';
+import 'package:e_commerce/presentation/screen/payment_method_page.dart';
 import 'package:e_commerce/presentation/screen/privacy_policy_page.dart';
 import 'package:flutter/material.dart';
 import '../widgets/account_list_item.dart';
@@ -70,7 +71,13 @@ class AccountPage extends StatelessWidget {
                   AccountListItem(
                     icon: Icons.credit_card,
                     title: 'Payment Methods',
-                    onTap: () {},
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PaymentMethodsPage(),
+                          ),
+                        ),
                   ),
                   const Divider(),
                   AccountListItem(
