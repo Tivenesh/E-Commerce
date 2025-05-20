@@ -1,4 +1,5 @@
 // lib/presentation/screens/account_page.dart
+import 'package:e_commerce/presentation/screen/order_page.dart';
 import 'package:flutter/material.dart';
 import '../widgets/account_list_item.dart';
 import 'profile_page.dart';
@@ -55,7 +56,13 @@ class AccountPage extends StatelessWidget {
                   AccountListItem(
                     icon: Icons.shopping_bag_outlined,
                     title: 'My Order',
-                    onTap: () {},
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const OrderPage(),
+                          ),
+                        ),
                   ),
                   const Divider(),
                   AccountListItem(
