@@ -1,5 +1,7 @@
 // lib/presentation/screens/account_page.dart
+import 'package:e_commerce/presentation/screen/notifications_page.dart';
 import 'package:e_commerce/presentation/screen/order_page.dart';
+import 'package:e_commerce/presentation/screen/privacy_policy_page.dart';
 import 'package:flutter/material.dart';
 import '../widgets/account_list_item.dart';
 import 'profile_page.dart';
@@ -74,13 +76,25 @@ class AccountPage extends StatelessWidget {
                   AccountListItem(
                     icon: Icons.notifications_outlined,
                     title: 'Notifications',
-                    onTap: () {},
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => NotificationsPage(),
+                          ),
+                        ),
                   ),
                   const Divider(),
                   AccountListItem(
                     icon: Icons.privacy_tip_outlined,
                     title: 'Privacy Policy',
-                    onTap: () {},
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PrivacyPolicyPage(),
+                          ),
+                        ),
                   ),
                   const Divider(),
                   AccountListItem(
