@@ -16,6 +16,8 @@ class MyApp extends StatelessWidget {
 
   static const String loginRoute = '/login';
   static const String accountDetailsRoute = '/accountDetails';
+  
+  static const String addItemPage = '/seller/additem';
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +38,7 @@ class MyApp extends StatelessWidget {
       routes: {
         loginRoute: (context) => const LoginPage(),
         accountDetailsRoute: (context) => const AccountDetailsPage(),
+        addItemPage: (context) => const AddItemPage(),
       },
     );
   }
