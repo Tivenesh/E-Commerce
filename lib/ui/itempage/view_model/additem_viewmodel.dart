@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../data/models/item.dart';
-import '../../../data//services/item_repository.dart';
+import '../../../data/services/old_item_repository.dart';
 
 class AddItemViewModel extends ChangeNotifier {
   final ItemRepository repository;

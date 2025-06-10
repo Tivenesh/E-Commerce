@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import './view_model/add_item_viewmodel.dart';
+import '../view_model/additem_viewmodel.dart';
 
 class AddItemPage extends StatelessWidget {
   const AddItemPage({Key? key}) : super(key: key);

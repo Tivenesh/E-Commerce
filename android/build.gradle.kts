@@ -31,5 +31,5 @@ tasks.register<Delete>("clean") {
 // ✅ Apply Google Services plugin globally (needed for Firebase)
 plugins {
    
-    id("com.google.gms.google-services") version "4.4.2" apply false
+    id("com.google.gms.google-services") version "4.3.15" apply false
 }
