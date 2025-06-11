@@ -1,5 +1,6 @@
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:e_commerce/utils/logger.dart';
+
 /// Represents an Item available for sale, which can be a product or a service.
 
 // Helper enum for Item type

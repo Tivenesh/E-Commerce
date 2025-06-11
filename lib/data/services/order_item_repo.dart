@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/order_item.dart'; // Adjust this import path
+import 'package:e_commerce/utils/logger.dart';
+import 'package:e_commerce/data/models/order_item.dart'; 
 
 /// Service for managing Order data in Firestore.
 class OrderItemRepo {

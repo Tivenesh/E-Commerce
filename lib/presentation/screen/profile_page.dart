@@ -1,6 +1,6 @@
 // lib/presentation/screens/profile_page.dart
 import 'package:flutter/material.dart';
-import '../../domain/models/user.dart';
+import 'package:e_commerce/data/models/user.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);

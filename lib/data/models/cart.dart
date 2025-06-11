@@ -1,3 +1,5 @@
+import 'package:e_commerce/utils/logger.dart';
+
 /// Represents an item within a user's shopping cart.
 class CartItem {
   final String itemId; // Reference to the Item document

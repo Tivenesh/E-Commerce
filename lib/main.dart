@@ -3,7 +3,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'presentation/screen/login_page.dart';
 import 'presentation/screen/account_details_page.dart';
 
-import 'ui/itempage/widgets/add_item_form.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,7 +37,6 @@ class MyApp extends StatelessWidget {
       routes: {
         loginRoute: (context) => const LoginPage(),
         accountDetailsRoute: (context) => const AccountDetailsPage(),
-        addItemPage: (context) => const AddItemPage(),
       },
     );
   }

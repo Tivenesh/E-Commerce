@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/payment.dart'; // Adjust this import path
+import 'package:e_commerce/utils/logger.dart';
+import 'package:e_commerce/data/models/payment.dart';
 
 /// Service for managing Payment data in Firestore.
 class PaymentRepo {

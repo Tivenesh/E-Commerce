@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user.dart';
+import 'package:e_commerce/utils/logger.dart';
+import 'package:e_commerce/data/models/user.dart';
 
 /// Service for managing User data in Firestore.
 class UserRepo {

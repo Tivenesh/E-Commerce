@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/cart.dart'; // Adjust this import path
+import 'package:e_commerce/utils/logger.dart';
+import 'package:e_commerce/data/models/cart.dart'; 
 
 /// Service for managing user-specific Cart data in Firestore.
 /// Cart items are stored as a subcollection under each user:
