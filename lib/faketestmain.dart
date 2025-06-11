@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:uuid/uuid.dart';
 
 import 'firebase_options.dart';
+
+import 'package:e_commerce/utils/logger.dart';
 
 import 'package:e_commerce/data/models/cart.dart'; 
 import 'package:e_commerce/data/models/item.dart';
@@ -11,15 +14,21 @@ import 'package:e_commerce/data/models/order_item.dart';
 import 'package:e_commerce/data/models/payment.dart';
 import 'package:e_commerce/data/models/user.dart';
 
+import 'package:e_commerce/data/services/firebase_auth_service.dart';
 
 import 'package:e_commerce/data/services/cart_repo.dart';
 import 'package:e_commerce/data/services/item_repo.dart';
 import 'package:e_commerce/data/services/order_item_repo.dart';
 import 'package:e_commerce/data/services/payment_repo.dart';
 import 'package:e_commerce/data/services/user_repo.dart';
+
+import 'package:e_commerce/data/usecases/auth/signup.dart';
+import 'package:e_commerce/data/usecases/auth/signin.dart';
+import 'package:e_commerce/data/usecases/auth/signout.dart';
+
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -33,21 +42,182 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'E-commerce Data Population & Viewer',
+      title: 'E-commerce App',
       theme: ThemeData(
         primarySwatch: Colors.blueGrey,
         visualDensity: VisualDensity.adaptivePlatformDensity,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.blueGrey, // Customize app bar background
-          foregroundColor: Colors.white, // Customize app bar text/icon color
+          backgroundColor: Colors.blueGrey,
+          foregroundColor: Colors.white,
         ),
       ),
-      home: const HomeScreen(),
+      // Use a StreamBuilder to listen for authentication state changes
+      home: StreamBuilder<firebase_auth.User?>(
+        stream: firebase_auth.FirebaseAuth.instance.authStateChanges(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (snapshot.hasData) {
+            // User is signed in
+            return const HomeScreen();
+          } else {
+            // User is signed out
+            return const AuthScreen();
+          }
+        },
+      ),
     );
   }
 }
 
-/// The main screen that displays the data and handles dummy data creation.
+/// A simple authentication screen for Sign In and Sign Up.
+class AuthScreen extends StatefulWidget {
+  const AuthScreen({super.key});
+
+  @override
+  State<AuthScreen> createState() => _AuthScreenState();
+}
+
+class _AuthScreenState extends State<AuthScreen> {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  bool _isLogin = true; // Toggle between login and signup
+
+  late final FirebaseAuthService _authService;
+  late final SignUpUseCase _signUpUseCase;
+  late final SignInUseCase _signInUseCase;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize services and use cases
+    final UserRepo userService = UserRepo(); // Concrete implementation of UserRepository
+    _authService = FirebaseAuthService(userService); // Inject FirebaseUserService
+    _signUpUseCase = SignUpUseCase(_authService);
+    _signInUseCase = SignInUseCase(_authService);
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _usernameController.dispose();
+    super.dispose();
+  }
+
+  void _authenticate() async {
+    try {
+      if (_isLogin) {
+        await _signInUseCase(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged in successfully!')),
+        );
+      } else {
+        await _signUpUseCase(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+          _usernameController.text.trim(),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Signed up and logged in successfully!')),
+        );
+      }
+    } catch (e) {
+      appLogger.e('Authentication failed in AuthScreen: $e', error: e); // Log the error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Authentication failed: ${e.toString()}')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(_isLogin ? 'Login' : 'Sign Up')),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _isLogin ? 'Welcome Back!' : 'Create Your Account',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: Colors.blueGrey[700]),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.email),
+                ),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _passwordController,
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.lock),
+                ),
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+              if (!_isLogin) // Show username field only for sign-up
+                TextField(
+                  controller: _usernameController,
+                  decoration: InputDecoration(
+                    labelText: 'Username',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.person),
+                  ),
+                ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: _authenticate,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey[700],
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  _isLogin ? 'Login' : 'Sign Up',
+                  style: const TextStyle(fontSize: 18),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _isLogin = !_isLogin;
+                  });
+                },
+                child: Text(
+                  _isLogin
+                      ? 'Don\'t have an account? Sign Up'
+                      : 'Already have an account? Login',
+                  style: TextStyle(color: Colors.blueGrey[500]),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The main screen that displays the data, now accessible after authentication.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -56,68 +226,78 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // Instantiate each specific service
-  final UserRepo _userService = UserRepo();
-  final ItemRepo _itemService = ItemRepo();
-  final CartRepo _cartService = CartRepo();
-  final OrderItemRepo _orderService = OrderItemRepo();
-  final PaymentRepo _paymentService = PaymentRepo();
+  // Instantiate services and use cases (in a real app, these would be injected)
+  late final UserRepo _userService;
+  late final ItemRepo _itemService;
+  late final CartRepo _cartService;
+  late final OrderItemRepo _orderService;
+  late final PaymentRepo _paymentService;
+  late final FirebaseAuthService _authService; // Auth service for sign out
+  late final SignOutUseCase _signOutUseCase;
 
-  String _currentTab = 'Users'; // Controls which data is displayed
-  final Uuid _uuid = const Uuid(); // For generating unique IDs
+  String _currentTab = 'Users';
+  final Uuid _uuid = const Uuid();
 
-  // Define fixed IDs for dummy data to ensure relationships
-  late String _dummyUserId;
-  late String _dummyProductId;
-  late String _dummyServiceId;
-  late String _dummyOrderId;
-  late String _dummyPaymentId;
+  // Use the current authenticated user's UID for data operations
+  late String _currentUserId;
 
   @override
   void initState() {
     super.initState();
-    // Initialize dummy IDs
-    _dummyUserId = _uuid.v4();
-    _dummyProductId = _uuid.v4();
-    _dummyServiceId = _uuid.v4();
-    _dummyOrderId = _uuid.v4();
-    _dummyPaymentId = _uuid.v4();
+    // Initialize services
+    _userService = UserRepo(); // Concrete implementation of UserRepository
+    _itemService = ItemRepo();
+    _cartService = CartRepo();
+    _orderService = OrderItemRepo();
+    _paymentService = PaymentRepo();
+    _authService = FirebaseAuthService(_userService); // Inject FirebaseUserService into FirebaseAuthService
+    _signOutUseCase = SignOutUseCase(_authService);
 
-    // Add some dummy data when the screen initializes
+    // Ensure there's a current user from Firebase Auth
+    _currentUserId = firebase_auth.FirebaseAuth.instance.currentUser?.uid ?? 'unknown_user';
+
+    // Add some dummy data (only if collections are empty)
     _addDummyDataIfCollectionsEmpty();
   }
 
   /// Adds dummy data to Firestore collections if they are empty.
-  /// This prevents adding duplicate data on every app restart during development.
+  /// Uses the currently logged-in user's ID for data association.
   Future<void> _addDummyDataIfCollectionsEmpty() async {
-    print('Checking for existing data and adding dummy data if needed...');
+    appLogger.d('Checking for existing data and adding dummy data if needed...'); // Using logger
 
-    // --- Add Dummy User ---
-    final usersSnapshot = await firestore.FirebaseFirestore.instance.collection('users').get();
-    if (usersSnapshot.docs.isEmpty) {
+    // If _currentUserId is 'unknown_user', it means no user was logged in
+    // or Firebase Auth hasn't resolved yet. In a real app, dummy data
+    // should probably only be added after a user is logged in.
+    if (_currentUserId == 'unknown_user') {
+      appLogger.w('No authenticated user found for dummy data creation. Skipping dummy data addition.'); // Using logger
+      return;
+    }
+
+    // --- Add Dummy User (only if it doesn't exist for the current UID) ---
+    final userDoc = await firestore.FirebaseFirestore.instance.collection('users').doc(_currentUserId).get();
+    if (!userDoc.exists) {
       final dummyUser = User(
-        id: _dummyUserId,
-        email: 'sellerbuyer@example.com',
-        username: 'Ecom Seller/Buyer',
+        id: _currentUserId,
+        email: firebase_auth.FirebaseAuth.instance.currentUser?.email ?? 'authenticated_user@example.com',
+        username: firebase_auth.FirebaseAuth.instance.currentUser?.displayName ?? 'Authenticated User',
         profileImageUrl: 'https://placehold.co/100x100/A0D9F7/FFFFFF?text=User',
-        address: '456 Market St, Commerce City, CA 90210',
-        phoneNumber: '+1-555-123-4567',
+        address: 'Authenticated Address',
+        phoneNumber: 'N/A',
         createdAt: firestore.Timestamp.now(),
         updatedAt: firestore.Timestamp.now(),
       );
       await _userService.addUser(dummyUser);
-      print('Added dummy user: ${dummyUser.username}');
+      appLogger.i('Created Firestore profile for authenticated user: ${dummyUser.username}'); // Using logger
     } else {
-      _dummyUserId = usersSnapshot.docs.first.id; // Use existing user ID if available
-      print('Found existing users. Using first user ID: $_dummyUserId');
+      appLogger.i('Firestore profile already exists for user: $_currentUserId'); // Using logger
     }
 
     // --- Add Dummy Items (Product & Service) ---
     final itemsSnapshot = await firestore.FirebaseFirestore.instance.collection('items').get();
     if (itemsSnapshot.docs.isEmpty) {
       final dummyProduct = Item(
-        id: _dummyProductId,
-        sellerId: _dummyUserId,
+        id: _uuid.v4(),
+        sellerId: _currentUserId, // Link to current user as seller
         name: 'Smart Watch X',
         description: 'Advanced health tracking and notification features.',
         price: 199.99,
@@ -129,8 +309,8 @@ class _HomeScreenState extends State<HomeScreen> {
         updatedAt: firestore.Timestamp.now(),
       );
       final dummyService = Item(
-        id: _dummyServiceId,
-        sellerId: _dummyUserId,
+        id: _uuid.v4(),
+        sellerId: _currentUserId, // Link to current user as seller
         name: 'Mobile App Development',
         description: 'Custom iOS/Android application development service.',
         price: 2500.00,
@@ -143,90 +323,78 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       await _itemService.addItem(dummyProduct);
       await _itemService.addItem(dummyService);
-      print('Added dummy product and service.');
+      appLogger.i('Added dummy product and service.'); // Using logger
     } else {
-      _dummyProductId = itemsSnapshot.docs.first.id;
-      print('Found existing items.');
+      appLogger.i('Found existing items.'); // Using logger
     }
 
     // --- Add Dummy Cart Item ---
-    // Make sure to add a cart item for the specific _dummyUserId
     final cartSnapshot = await firestore.FirebaseFirestore.instance
         .collection('users')
-        .doc(_dummyUserId)
+        .doc(_currentUserId)
         .collection('cart')
         .get();
     if (cartSnapshot.docs.isEmpty) {
       final dummyCartItem = CartItem(
-        itemId: _dummyProductId, // Link to the dummy product
+        itemId: itemsSnapshot.docs.isNotEmpty ? itemsSnapshot.docs.first.id : _uuid.v4(), // Use an actual item ID
         quantity: 1,
         itemPrice: 199.99,
-        itemName: 'Smart Watch X',
+        itemName: 'Dummy Cart Item (Smart Watch)',
         itemImageUrl: 'https://placehold.co/150x150/808080/FFFFFF?text=SmartWatch',
       );
-      await _cartService.addOrUpdateCartItem(_dummyUserId, dummyCartItem);
-      print('Added dummy cart item for $_dummyUserId.');
+      await _cartService.addOrUpdateCartItem(_currentUserId, dummyCartItem);
+      appLogger.i('Added dummy cart item for $_currentUserId.'); // Using logger
     } else {
-      print('Found existing cart items for $_dummyUserId.');
+      appLogger.i('Found existing cart items for $_currentUserId.'); // Using logger
     }
 
     // --- Add Dummy Order ---
     final ordersSnapshot = await firestore.FirebaseFirestore.instance.collection('orders').get();
     if (ordersSnapshot.docs.isEmpty) {
+      final orderItems = [
+        CartItem(
+          itemId: itemsSnapshot.docs.isNotEmpty ? itemsSnapshot.docs.first.id : _uuid.v4(),
+          quantity: 1,
+          itemPrice: 199.99,
+          itemName: 'Smart Watch X',
+        ),
+      ];
       final dummyOrder = OrderItem(
-        id: _dummyOrderId,
-        buyerId: _dummyUserId,
-        sellerId: _dummyUserId, // Assuming the dummy user is both buyer and seller for this order
-        items: [
-          CartItem(
-            itemId: _dummyProductId,
-            quantity: 1,
-            itemPrice: 199.99,
-            itemName: 'Smart Watch X',
-            itemImageUrl: 'https://placehold.co/150x150/808080/FFFFFF?text=SmartWatch',
-          ),
-          CartItem(
-            itemId: _dummyServiceId,
-            quantity: 1,
-            itemPrice: 2500.00,
-            itemName: 'Mobile App Development',
-            itemImageUrl: 'https://placehold.co/150x150/32CD32/FFFFFF?text=Mobile+Dev',
-          ),
-        ],
-        totalAmount: 199.99 + 2500.00,
+        id: _uuid.v4(),
+        buyerId: _currentUserId,
+        sellerId: _currentUserId,
+        items: orderItems,
+        totalAmount: orderItems.fold(0.0, (sum, item) => sum + (item.itemPrice * item.quantity)),
         status: OrderStatus.pending,
-        deliveryAddress: '456 Market St, Commerce City, CA 90210',
-        deliveryInstructions: 'Leave package at front door.',
+        deliveryAddress: '123 Test St, Authenticated City',
         orderDate: firestore.Timestamp.now(),
-        estimatedDeliveryDate: firestore.Timestamp.fromDate(DateTime.now().add(const Duration(days: 7))),
       );
       await _orderService.addOrder(dummyOrder);
-      print('Added dummy order: ${dummyOrder.id}');
+      appLogger.i('Added dummy order: ${dummyOrder.id}'); // Using logger
     } else {
-      _dummyOrderId = ordersSnapshot.docs.first.id;
-      print('Found existing orders.');
+      appLogger.i('Found existing orders.'); // Using logger
     }
 
     // --- Add Dummy Payment ---
     final paymentsSnapshot = await firestore.FirebaseFirestore.instance.collection('payments').get();
     if (paymentsSnapshot.docs.isEmpty) {
       final dummyPayment = Payment(
-        id: _dummyPaymentId,
-        orderId: _dummyOrderId, // Link to the dummy order
-        payerId: _dummyUserId, // Link to the dummy user
-        amount: 2699.99, // Total amount from the dummy order
+        id: _uuid.v4(),
+        orderId: ordersSnapshot.docs.isNotEmpty ? ordersSnapshot.docs.first.id : _uuid.v4(), // Link to an existing order
+        payerId: _currentUserId,
+        amount: 2699.99,
         paymentDate: firestore.Timestamp.now(),
         paymentMethod: 'Credit Card',
         transactionId: _uuid.v4(),
         isSuccessful: true,
       );
       await _paymentService.addPayment(dummyPayment);
-      print('Added dummy payment: ${dummyPayment.id}');
+      appLogger.i('Added dummy payment: ${dummyPayment.id}'); // Using logger
     } else {
-      print('Found existing payments.');
+      appLogger.i('Found existing payments.'); // Using logger
     }
 
-    print('Dummy data check complete.');
+    appLogger.d('Dummy data check complete.'); // Using logger
   }
 
 
@@ -235,6 +403,16 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('E-commerce Data Overview'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await _signOutUseCase(); // Call the sign-out use case
+              // AuthStreamBuilder in MyApp will automatically navigate to AuthScreen
+            },
+            tooltip: 'Sign Out',
+          ),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(48.0),
           child: Row(
@@ -380,7 +558,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       case 'Cart':
         return StreamBuilder<List<CartItem>>(
-          stream: _cartService.getCartItems(_dummyUserId), // Uses the dummy user's ID
+          stream: _cartService.getCartItems(_currentUserId), // Uses the current user's ID
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -389,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return Center(child: Text('Error: ${snapshot.error}'));
             }
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Center(child: Text('No items in cart for user $_dummyUserId.'));
+              return Center(child: Text('No items in cart for user $_currentUserId.'));
             }
             final cartItems = snapshot.data!;
             return ListView.builder(
@@ -475,7 +653,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   padding: const EdgeInsets.only(left: 8.0, top: 4.0),
                                   child: Text('- ${item.itemName} (x${item.quantity}) @ \$${item.itemPrice.toStringAsFixed(2)}'),
                                 )
-                            ).toList(),
+                            ),
                           ],
                         ),
                       ),

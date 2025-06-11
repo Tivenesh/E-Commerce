@@ -11,12 +11,12 @@ class ItemRepo {
   Future<void> addItem(Item item) async {
     try {
       await _firestore.collection(_collectionName).doc(item.id).set(item.toJson());
-      print('Item added/updated successfully: ${item.name}');
+      appLogger.i('Item added/updated successfully: ${item.name}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception adding item: ${e.message}');
+      appLogger.i('Firebase Exception adding item: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error adding item: $e');
+      appLogger.e('Error adding item: $e');
       rethrow;
     }
   }
@@ -30,10 +30,10 @@ class ItemRepo {
       }
       return null;
     } on FirebaseException catch (e) {
-      print('Firebase Exception getting item by ID: ${e.message}');
+      appLogger.i('Firebase Exception getting item by ID: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error getting item by ID: $e');
+      appLogger.e('Error getting item by ID: $e');
       rethrow;
     }
   }
@@ -60,12 +60,12 @@ class ItemRepo {
   Future<void> updateItem(Item item) async {
     try {
       await _firestore.collection(_collectionName).doc(item.id).update(item.toJson());
-      print('Item updated successfully: ${item.name}');
+      appLogger.i('Item updated successfully: ${item.name}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception updating item: ${e.message}');
+      appLogger.i('Firebase Exception updating item: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error updating item: $e');
+      appLogger.e('Error updating item: $e');
       rethrow;
     }
   }
@@ -74,12 +74,12 @@ class ItemRepo {
   Future<void> deleteItem(String itemId) async {
     try {
       await _firestore.collection(_collectionName).doc(itemId).delete();
-      print('Item deleted successfully: $itemId');
+      appLogger.i('Item deleted successfully: $itemId');
     } on FirebaseException catch (e) {
-      print('Firebase Exception deleting item: ${e.message}');
+      appLogger.i('Firebase Exception deleting item: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error deleting item: $e');
+      appLogger.e('Error deleting item: $e');
       rethrow;
     }
   }

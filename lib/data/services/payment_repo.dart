@@ -11,12 +11,12 @@ class PaymentRepo {
   Future<void> addPayment(Payment payment) async {
     try {
       await _firestore.collection(_collectionName).doc(payment.id).set(payment.toJson());
-      print('Payment added successfully: ${payment.id}');
+      appLogger.i('Payment added successfully: ${payment.id}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception adding payment: ${e.message}');
+      appLogger.i('Firebase Exception adding payment: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error adding payment: $e');
+      appLogger.e('Error adding payment: $e');
       rethrow;
     }
   }
@@ -30,10 +30,10 @@ class PaymentRepo {
       }
       return null;
     } on FirebaseException catch (e) {
-      print('Firebase Exception getting payment by ID: ${e.message}');
+      appLogger.i('Firebase Exception getting payment by ID: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error getting payment by ID: $e');
+      appLogger.e('Error getting payment by ID: $e');
       rethrow;
     }
   }
@@ -60,12 +60,12 @@ class PaymentRepo {
   Future<void> updatePayment(Payment payment) async {
     try {
       await _firestore.collection(_collectionName).doc(payment.id).update(payment.toJson());
-      print('Payment updated successfully: ${payment.id}');
+      appLogger.i('Payment updated successfully: ${payment.id}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception updating payment: ${e.message}');
+      appLogger.i('Firebase Exception updating payment: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error updating payment: $e');
+      appLogger.e('Error updating payment: $e');
       rethrow;
     }
   }
@@ -74,12 +74,12 @@ class PaymentRepo {
   Future<void> deletePayment(String paymentId) async {
     try {
       await _firestore.collection(_collectionName).doc(paymentId).delete();
-      print('Payment deleted successfully: $paymentId');
+      appLogger.i('Payment deleted successfully: $paymentId');
     } on FirebaseException catch (e) {
-      print('Firebase Exception deleting payment: ${e.message}');
+      appLogger.i('Firebase Exception deleting payment: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error deleting payment: $e');
+      appLogger.e('Error deleting payment: $e');
       rethrow;
     }
   }

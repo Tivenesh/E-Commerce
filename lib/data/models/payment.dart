@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:e_commerce/utils/logger.dart';
 
 /// Represents a payment transaction.
 class Payment {

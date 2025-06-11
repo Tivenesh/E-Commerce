@@ -1,14 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:e_commerce/utils/logger.dart';
 
 /// Represents an Item available for sale, which can be a product or a service.
 
 // Helper enum for Item type
-enum ItemType {
-  product,
-  service,
-}
-
+enum ItemType { product, service }
 
 class Item {
   final String id;
@@ -38,9 +33,10 @@ class Item {
     required this.listedAt,
     required this.updatedAt,
   }) : assert(
-            (type == ItemType.product && quantity != null && quantity >= 0) ||
-                (type == ItemType.service && duration != null),
-            'Products must have a quantity; Services must have a duration');
+         (type == ItemType.product && quantity != null && quantity >= 0) ||
+             (type == ItemType.service && duration != null),
+         'Products must have a quantity; Services must have a duration',
+       );
 
   /// Converts an Item object to a JSON map for Firestore.
   Map<String, dynamic> toJson() {
@@ -50,7 +46,11 @@ class Item {
       'name': name,
       'description': description,
       'price': price,
-      'type': type.toString().split('.').last, // Store as string 'product' or 'service'
+      'type':
+          type
+              .toString()
+              .split('.')
+              .last, // Store as string 'product' or 'service'
       'quantity': quantity,
       'duration': duration,
       'category': category,
@@ -58,6 +58,36 @@ class Item {
       'listedAt': listedAt,
       'updatedAt': updatedAt,
     };
+  }
+
+  Item copyWith({
+    String? id,
+    String? sellerId,
+    String? name,
+    String? description,
+    double? price,
+    ItemType? type,
+    int? quantity,
+    String? duration,
+    String? category,
+    List<String>? imageUrls,
+    Timestamp? listedAt,
+    Timestamp? updatedAt,
+  }) {
+    return Item(
+      id: id ?? this.id,
+      sellerId: sellerId ?? this.sellerId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      type: type ?? this.type,
+      quantity: quantity ?? this.quantity,
+      duration: duration ?? this.duration,
+      category: category ?? this.category,
+      imageUrls: imageUrls ?? this.imageUrls,
+      listedAt: listedAt ?? this.listedAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 
   /// Creates an Item object from a Firestore DocumentSnapshot.

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'presentation/screen/login_page.dart';
-import 'presentation/screen/account_details_page.dart';
+import 'presentation/old/login_page.dart';
+import 'presentation/old/account_details_page.dart';
 
 
 void main() async {

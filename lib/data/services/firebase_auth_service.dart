@@ -42,10 +42,10 @@ class FirebaseAuthService {
       }
       return null;
     } on firebase_auth.FirebaseAuthException catch (e) {
-      print('FirebaseAuth Exception during sign up: ${e.code} - ${e.message}');
+      appLogger.f('FirebaseAuth Exception during sign up: ${e.code} - ${e.message}');
       rethrow; // Re-throw to be handled by ViewModel/UI
     } catch (e) {
-      print('Error during sign up: $e');
+      appLogger.e('Error during sign up: $e');
       rethrow;
     }
   }
@@ -74,10 +74,10 @@ class FirebaseAuthService {
       }
       return null;
     } on firebase_auth.FirebaseAuthException catch (e) {
-      print('FirebaseAuth Exception during sign in: ${e.code} - ${e.message}');
+      appLogger.f('FirebaseAuth Exception during sign in: ${e.code} - ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error during sign in: $e');
+      appLogger.e('Error during sign in: $e');
       rethrow;
     }
   }
@@ -86,12 +86,12 @@ class FirebaseAuthService {
   Future<void> sendPasswordResetEmail(String email) async {
     try {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
-      print('Password reset email sent to $email');
+      appLogger.i('Password reset email sent to $email');
     } on firebase_auth.FirebaseAuthException catch (e) {
-      print('FirebaseAuth Exception sending password reset: ${e.code} - ${e.message}');
+      appLogger.f('FirebaseAuth Exception sending password reset: ${e.code} - ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error sending password reset: $e');
+      appLogger.e('Error sending password reset: $e');
       rethrow;
     }
   }
@@ -100,12 +100,12 @@ class FirebaseAuthService {
   Future<void> signOut() async {
     try {
       await _firebaseAuth.signOut();
-      print('User signed out.');
+      appLogger.i('User signed out.');
     } on firebase_auth.FirebaseAuthException catch (e) {
-      print('FirebaseAuth Exception during sign out: ${e.code} - ${e.message}');
+      appLogger.f('FirebaseAuth Exception during sign out: ${e.code} - ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error during sign out: $e');
+      appLogger.e('Error during sign out: $e');
       rethrow;
     }
   }

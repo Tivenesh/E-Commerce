@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:e_commerce/presentation/screen/cart_page.dart';
+import 'package:e_commerce/presentation/old/cart_page.dart';
 
 class AppRoutes {
   static Map<String, WidgetBuilder> getRoutes() {

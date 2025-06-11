@@ -11,12 +11,12 @@ class OrderItemRepo {
   Future<void> addOrder(OrderItem order) async {
     try {
       await _firestore.collection(_collectionName).doc(order.id).set(order.toJson());
-      print('Order added successfully: ${order.id}');
+      appLogger.i('Order added successfully: ${order.id}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception adding order: ${e.message}');
+      appLogger.i('Firebase Exception adding order: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error adding order: $e');
+      appLogger.e('Error adding order: $e');
       rethrow;
     }
   }
@@ -30,10 +30,10 @@ class OrderItemRepo {
       }
       return null;
     } on FirebaseException catch (e) {
-      print('Firebase Exception getting order by ID: ${e.message}');
+      appLogger.i('Firebase Exception getting order by ID: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error getting order by ID: $e');
+      appLogger.e('Error getting order by ID: $e');
       rethrow;
     }
   }
@@ -71,12 +71,12 @@ class OrderItemRepo {
   Future<void> updateOrder(OrderItem order) async {
     try {
       await _firestore.collection(_collectionName).doc(order.id).update(order.toJson());
-      print('Order updated successfully: ${order.id}');
+      appLogger.i('Order updated successfully: ${order.id}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception updating order: ${e.message}');
+      appLogger.i('Firebase Exception updating order: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error updating order: $e');
+      appLogger.e('Error updating order: $e');
       rethrow;
     }
   }
@@ -85,12 +85,12 @@ class OrderItemRepo {
   Future<void> deleteOrder(String orderId) async {
     try {
       await _firestore.collection(_collectionName).doc(orderId).delete();
-      print('Order deleted successfully: $orderId');
+      appLogger.i('Order deleted successfully: $orderId');
     } on FirebaseException catch (e) {
-      print('Firebase Exception deleting order: ${e.message}');
+      appLogger.i('Firebase Exception deleting order: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error deleting order: $e');
+      appLogger.e('Error deleting order: $e');
       rethrow;
     }
   }

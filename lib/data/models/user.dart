@@ -1,18 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth; // Alias Firebase Auth's User to avoid conflict
-import 'package:e_commerce/utils/logger.dart';
 
 /// Represents a User in the e-commerce application.
 /// Its `id` property should match the Firebase Authentication UID.
 class User {
   final String id; // This will be the Firebase Auth UID
-  final String email;
+  final String? fullName; 
   final String username;
+  final String email;
+  final Timestamp? dateOfBirth; 
   final String? profileImageUrl;
   final String? address;
   final String? phoneNumber;
   final Timestamp createdAt;
   final Timestamp updatedAt;
+  final String? gender;     
 
   User({
     required this.id,
@@ -23,6 +25,10 @@ class User {
     this.phoneNumber,
     required this.createdAt,
     required this.updatedAt,
+    // New fields in constructor
+    this.fullName,
+    this.gender,
+    this.dateOfBirth,
   });
 
   /// Converts a User object to a JSON map for Firestore.
@@ -36,6 +42,10 @@ class User {
       'phoneNumber': phoneNumber,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
+      // New fields in toJson
+      'fullName': fullName,
+      'gender': gender,
+      'dateOfBirth': dateOfBirth,
     };
   }
 
@@ -51,6 +61,10 @@ class User {
       phoneNumber: data['phoneNumber'],
       createdAt: data['createdAt'] ?? Timestamp.now(),
       updatedAt: data['updatedAt'] ?? Timestamp.now(),
+      // New fields in fromFirestore
+      fullName: data['fullName'],
+      gender: data['gender'],
+      dateOfBirth: data['dateOfBirth'], // Firestore's Timestamp maps directly
     );
   }
 
@@ -61,10 +75,14 @@ class User {
     return User(
       id: firebaseUser.uid,
       email: firebaseUser.email ?? 'no-email@example.com',
-      username: firebaseUser.displayName ?? 'New User',
+      username: firebaseUser.displayName ?? 'New User', // Firebase Auth displayName for username
+      fullName: firebaseUser.displayName, // Often the same as displayName initially
       profileImageUrl: firebaseUser.photoURL,
       createdAt: Timestamp.now(), // Set initial creation time
       updatedAt: Timestamp.now(), // Set initial update time
+      // New fields, initially null or default from Firebase Auth if available
+      gender: null, // Not available from Firebase Auth directly
+      dateOfBirth: null, // Not available from Firebase Auth directly
     );
   }
 
@@ -78,6 +96,10 @@ class User {
     String? phoneNumber,
     Timestamp? createdAt,
     Timestamp? updatedAt,
+    // New fields in copyWith
+    String? fullName,
+    String? gender,
+    Timestamp? dateOfBirth,
   }) {
     return User(
       id: id ?? this.id,
@@ -88,6 +110,10 @@ class User {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      // New fields assignment in copyWith
+      fullName: fullName ?? this.fullName,
+      gender: gender ?? this.gender,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
     );
   }
 
@@ -99,8 +125,18 @@ class User {
           runtimeType == other.runtimeType &&
           id == other.id &&
           email == other.email &&
-          username == other.username);
+          username == other.username &&
+          fullName == other.fullName && // Include new fields in equality check
+          gender == other.gender &&
+          dateOfBirth == other.dateOfBirth);
 
   @override
-  int get hashCode => Object.hash(id, email, username);
+  int get hashCode => Object.hash(
+        id,
+        email,
+        username,
+        fullName,
+        gender,
+        dateOfBirth,
+      );
 }

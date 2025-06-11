@@ -1,11 +1,11 @@
 // lib/presentation/screens/account_page.dart
-import 'package:e_commerce/presentation/screen/notifications_page.dart';
-import 'package:e_commerce/presentation/screen/order_page.dart';
-import 'package:e_commerce/presentation/screen/payment_method_page.dart';
-import 'package:e_commerce/presentation/screen/privacy_policy_page.dart';
+import 'package:e_commerce/presentation/old/notifications_page.dart';
+import 'package:e_commerce/presentation/old/order_page.dart';
+import 'package:e_commerce/presentation/old/payment_method_page.dart';
+import 'package:e_commerce/presentation/old/privacy_policy_page.dart';
 import 'package:flutter/material.dart';
 import '../widgets/account_list_item.dart';
-import 'profile_page.dart';
+import 'package:e_commerce/presentation/old/profile_page.dart';
 
 class AccountPage extends StatelessWidget {
   const AccountPage({Key? key}) : super(key: key);

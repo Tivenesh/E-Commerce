@@ -11,12 +11,12 @@ class UserRepo {
   Future<void> addUser(User user) async {
     try {
       await _firestore.collection(_collectionName).doc(user.id).set(user.toJson());
-      print('User added/updated successfully: ${user.username}');
+      appLogger.i('User added/updated successfully: ${user.username}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception adding user: ${e.message}');
+      appLogger.i('Firebase Exception adding user: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error adding user: $e');
+      appLogger.e('Error adding user: $e');
       rethrow;
     }
   }
@@ -30,10 +30,10 @@ class UserRepo {
       }
       return null;
     } on FirebaseException catch (e) {
-      print('Firebase Exception getting user by ID: ${e.message}');
+      appLogger.i('Firebase Exception getting user by ID: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error getting user by ID: $e');
+      appLogger.e('Error getting user by ID: $e');
       rethrow;
     }
   }
@@ -49,12 +49,12 @@ class UserRepo {
   Future<void> updateUser(User user) async {
     try {
       await _firestore.collection(_collectionName).doc(user.id).update(user.toJson());
-      print('User updated successfully: ${user.username}');
+      appLogger.i('User updated successfully: ${user.username}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception updating user: ${e.message}');
+      appLogger.i('Firebase Exception updating user: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error updating user: $e');
+      appLogger.e('Error updating user: $e');
       rethrow;
     }
   }
@@ -63,12 +63,12 @@ class UserRepo {
   Future<void> deleteUser(String userId) async {
     try {
       await _firestore.collection(_collectionName).doc(userId).delete();
-      print('User deleted successfully: $userId');
+      appLogger.i('User deleted successfully: $userId');
     } on FirebaseException catch (e) {
-      print('Firebase Exception deleting user: ${e.message}');
+      appLogger.i('Firebase Exception deleting user: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error deleting user: $e');
+      appLogger.e('Error deleting user: $e');
       rethrow;
     }
   }

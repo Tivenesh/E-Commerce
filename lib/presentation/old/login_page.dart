@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:e_commerce/data/services/firebase_auth_service.dart';
 import 'account_details_page.dart';
 import 'register_page.dart';
 import 'forget_password.dart'; // ✅ Add this line
@@ -15,7 +16,7 @@ class _LoginPageState extends State<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final _auth = FirebaseAuth.instance;
+  final _auth = FirebaseAuthService();
   bool _loading = false;
 
   Future<void> _handleLogin() async {

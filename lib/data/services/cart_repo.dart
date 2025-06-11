@@ -20,12 +20,12 @@ class CartRepo {
           .collection(_cartSubCollection)
           .doc(cartItem.itemId) // Using itemId as the document ID for the cart item
           .set(cartItem.toJson());
-      print('Cart item added/updated for user $userId: ${cartItem.itemName}');
+      appLogger.i('Cart item added/updated for user $userId: ${cartItem.itemName}');
     } on FirebaseException catch (e) {
-      print('Firebase Exception adding/updating cart item: ${e.message}');
+      appLogger.i('Firebase Exception adding/updating cart item: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error adding/updating cart item: $e');
+      appLogger.e('Error adding/updating cart item: $e');
       rethrow;
     }
   }
@@ -51,12 +51,12 @@ class CartRepo {
           .collection(_cartSubCollection)
           .doc(itemId)
           .delete();
-      print('Cart item removed for user $userId: $itemId');
+      appLogger.i('Cart item removed for user $userId: $itemId');
     } on FirebaseException catch (e) {
-      print('Firebase Exception removing cart item: ${e.message}');
+      appLogger.i('Firebase Exception removing cart item: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error removing cart item: $e');
+      appLogger.e('Error removing cart item: $e');
       rethrow;
     }
   }
@@ -74,12 +74,12 @@ class CartRepo {
         batch.delete(doc.reference);
       }
       await batch.commit();
-      print('Cart cleared for user $userId');
+      appLogger.i('Cart cleared for user $userId');
     } on FirebaseException catch (e) {
-      print('Firebase Exception clearing cart: ${e.message}');
+      appLogger.i('Firebase Exception clearing cart: ${e.message}');
       rethrow;
     } catch (e) {
-      print('Error clearing cart: $e');
+      appLogger.e('Error clearing cart: $e');
       rethrow;
     }
   }

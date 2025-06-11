@@ -1,5 +1,3 @@
-import 'package:e_commerce/utils/logger.dart';
-
 /// Represents an item within a user's shopping cart.
 class CartItem {
   final String itemId; // Reference to the Item document
@@ -25,6 +23,22 @@ class CartItem {
       'itemName': itemName,
       'itemImageUrl': itemImageUrl,
     };
+  }
+
+  CartItem copyWith({
+    String? itemId,
+    int? quantity,
+    double? itemPrice,
+    String? itemName,
+    String? itemImageUrl,
+  }) {
+    return CartItem(
+      itemId: itemId ?? this.itemId,
+      quantity: quantity ?? this.quantity,
+      itemPrice: itemPrice ?? this.itemPrice,
+      itemName: itemName ?? this.itemName,
+      itemImageUrl: itemImageUrl ?? this.itemImageUrl,
+    );
   }
 
   /// Creates a CartItem object from a JSON map (typically from an Order's item list).
