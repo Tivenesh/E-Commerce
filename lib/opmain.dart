@@ -11,7 +11,11 @@ import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart';
 import 'package:e_commerce/data/usecases/items/get_all_item_usecase.dart';
 import 'package:e_commerce/data/usecases/orders/place_order_usecase.dart';
 import 'package:e_commerce/presentation/authscreen.dart';
+import 'package:e_commerce/presentation/carts/cartvm.dart';
+import 'package:e_commerce/presentation/items/itemlistvm.dart';
+import 'package:e_commerce/presentation/orders/orderlistvm.dart';
 import 'package:e_commerce/presentation/testhome.dart';
+import 'package:e_commerce/presentation/users/profilevm.dart';
 import 'package:e_commerce/routing/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -23,7 +27,6 @@ import 'package:provider/provider.dart'; // For Provider, Consumer, Selector
 import 'firebase_options.dart';
 
 // Models
-
 
 // Utils
 import 'package:e_commerce/utils/logger.dart';
@@ -92,7 +95,39 @@ class MyApp extends StatelessWidget {
         Provider<AddItemToCartUseCase>(create: (_) => addItemToCartUseCase),
         Provider<PlaceOrderUseCase>(create: (_) => placeOrderUseCase),
         Provider<GetAllItemsUseCase>(create: (_) => getAllProductsUseCase),
-
+        ChangeNotifierProvider(
+          create:
+              (context) => ProfileViewModel(
+                Provider.of<UserRepo>(context, listen: false),
+              ),
+        ),
+        ChangeNotifierProvider(
+          create:
+              (context) => ItemListViewModel(
+                Provider.of<ItemRepo>(context, listen: false),
+                Provider.of<AddItemToCartUseCase>(context, listen: false),
+              ),
+        ),
+        ChangeNotifierProvider(
+          create:
+              (context) => CartViewModel(
+                Provider.of<CartRepo>(context, listen: false),
+                Provider.of<ItemRepo>(
+                  context,
+                  listen: false,
+                ), // Dependency needed for CartViewModel
+                Provider.of<PlaceOrderUseCase>(
+                  context,
+                  listen: false,
+                ), // Dependency needed for CartViewModel
+              ),
+        ),
+        ChangeNotifierProvider(
+          create:
+              (context) => OrderListViewModel(
+                Provider.of<OrderItemRepo>(context, listen: false),
+              ),
+        ),
         // Add more providers here if you have other global services or view models that aren't tied to a specific route.
         // Page-specific ViewModels will be provided in onGenerateRoute as shown in app_router.dart
       ],
@@ -109,35 +144,6 @@ class MyApp extends StatelessWidget {
         // Use onGenerateRoute for centralized routing
         onGenerateRoute: AppRouter.onGenerateRoute,
         initialRoute: AppRoutes.authRoute, // Start at the authentication screen
-        // Wrap the home property in a builder to access providers from the tree
-        builder: (context, child) {
-          // Listen to Firebase Auth state changes
-          return StreamBuilder<firebase_auth.User?>(
-            stream: firebase_auth.FirebaseAuth.instance.authStateChanges(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
-              }
-              if (snapshot.hasData) {
-                appLogger.i(
-                  'User ${snapshot.data!.email} is signed in. Navigating to home.',
-                );
-                // User is signed in, navigate to home screen.
-                // We use Navigator.pushReplacementNamed to clear the auth screen from stack
-                // This will be called once after login.
-                // If already on homescreen, it won't re-navigate.
-                return const HomeScreen(); // Or Navigator.pushReplacementNamed(context, AppRoutes.homeRoute);
-                // but directly setting home is simpler for root navigation
-              } else {
-                appLogger.i('No user signed in. Navigating to auth screen.');
-                // User is signed out, navigate to auth screen.
-                return const AuthScreen(); // Or Navigator.pushReplacementNamed(context, AppRoutes.authRoute);
-              }
-            },
-          );
-        },
       ),
     );
   }

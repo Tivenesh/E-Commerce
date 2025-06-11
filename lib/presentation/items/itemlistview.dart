@@ -1,7 +1,7 @@
-import 'package:e_commerce/data/models/item.dart';
-import 'package:e_commerce/presentation/items/itemlistvm.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:e_commerce/presentation/items/itemlistvm.dart';
+import 'package:e_commerce/data/models/item.dart'; // For ItemType
 
 /// The Item List Page (View) displays all available items and allows searching.
 class ItemListPage extends StatefulWidget {
@@ -99,21 +99,25 @@ class _ItemListPageState extends State<ItemListPage> {
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(8.0),
-                        child: item.imageUrls.isNotEmpty
+                        child: (item.imageUrls != null && item.imageUrls.isNotEmpty)
                             ? Image.network(
                                 item.imageUrls.first,
                                 width: 80,
                                 height: 80,
                                 fit: BoxFit.cover,
+                                // Error builder for when Image.network fails to load
                                 errorBuilder: (context, error, stackTrace) =>
                                     Container(
                                       width: 80,
                                       height: 80,
-                                      color: Colors.blueGrey[50],
-                                      child: const Icon(Icons.broken_image, color: Colors.grey),
+                                      decoration: BoxDecoration(
+                                        color: Colors.blueGrey[50],
+                                        borderRadius: BorderRadius.circular(8.0),
+                                      ),
+                                      child: const Icon(Icons.image_not_supported, color: Colors.grey), // Broken image icon
                                     ),
                               )
-                            : Container(
+                            : Container( // Fallback if no URL is provided at all
                                 width: 80,
                                 height: 80,
                                 decoration: BoxDecoration(

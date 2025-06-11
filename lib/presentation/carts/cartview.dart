@@ -1,6 +1,7 @@
-import 'package:e_commerce/presentation/carts/cartvm.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:e_commerce/presentation/carts/cartvm.dart';
+import 'package:e_commerce/data/models/cart.dart'; // For CartItem type
 
 /// The user's shopping cart page (View).
 class CartPage extends StatelessWidget {
@@ -57,26 +58,34 @@ class CartPage extends StatelessWidget {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(8.0),
                               child:
-                                  cartItem.itemImageUrl != null &&
-                                          cartItem.itemImageUrl!.isNotEmpty
+                                  (cartItem.itemImageUrl != null &&
+                                          cartItem.itemImageUrl!.isNotEmpty)
                                       ? Image.network(
                                         cartItem.itemImageUrl!,
                                         width: 80,
                                         height: 80,
                                         fit: BoxFit.cover,
+                                        // Error builder for when Image.network fails to load
                                         errorBuilder:
                                             (context, error, stackTrace) =>
                                                 Container(
                                                   width: 80,
                                                   height: 80,
-                                                  color: Colors.blueGrey[50],
-                                                  child: const Icon(
-                                                    Icons.broken_image,
-                                                    color: Colors.grey,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.blueGrey[50],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8.0,
+                                                        ),
                                                   ),
+                                                  child: const Icon(
+                                                    Icons.image_not_supported,
+                                                    color: Colors.grey,
+                                                  ), // Broken image icon
                                                 ),
                                       )
                                       : Container(
+                                        // Fallback if no URL is provided at all
                                         width: 80,
                                         height: 80,
                                         decoration: BoxDecoration(
@@ -88,7 +97,7 @@ class CartPage extends StatelessWidget {
                                         child: const Icon(
                                           Icons.shopping_cart,
                                           color: Colors.blueGrey,
-                                        ),
+                                        ), // Generic cart icon
                                       ),
                             ),
                             const SizedBox(width: 12),
