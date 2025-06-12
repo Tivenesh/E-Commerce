@@ -1,150 +1,86 @@
-import 'package:e_commerce/data/services/cart_repo.dart';
-import 'package:e_commerce/data/services/firebase_auth_service.dart';
-import 'package:e_commerce/data/services/item_repo.dart';
-import 'package:e_commerce/data/services/order_item_repo.dart';
-import 'package:e_commerce/data/services/payment_repo.dart';
-import 'package:e_commerce/data/services/user_repo.dart';
-import 'package:e_commerce/data/usecases/auth/signin.dart';
-import 'package:e_commerce/data/usecases/auth/signout.dart';
-import 'package:e_commerce/data/usecases/auth/signup.dart';
-import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart';
-import 'package:e_commerce/data/usecases/items/get_all_item_usecase.dart';
-import 'package:e_commerce/data/usecases/orders/place_order_usecase.dart';
-import 'package:e_commerce/presentation/authscreen.dart';
-import 'package:e_commerce/presentation/carts/cartvm.dart';
-import 'package:e_commerce/presentation/items/itemlistvm.dart';
-import 'package:e_commerce/presentation/orders/orderlistvm.dart';
-import 'package:e_commerce/presentation/testhome.dart';
-import 'package:e_commerce/presentation/users/profilevm.dart';
-import 'package:e_commerce/routing/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'
-    as firebase_auth; // Alias for Firebase Auth's User
-import 'package:provider/provider.dart'; // For Provider, Consumer, Selector
-
-// Firebase options
-import 'firebase_options.dart';
-
-// Models
-
-// Utils
-import 'package:e_commerce/utils/logger.dart';
+import 'package:provider/provider.dart';
+import 'core/di/dependency_injection.dart';
+import 'presentation/users/profilevm.dart';
+import 'presentation/users/profileview.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  // Initialize Firebase
+  await Firebase.initializeApp();
+
+  // Setup dependency injection
+  setupDependencyInjection();
 
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    // Initialize all your concrete services (Data Layer implementations)
-    // These are often instantiated once and provided throughout the app.
-    final UserRepo firebaseUserService = UserRepo();
-    final ItemRepo firebaseItemService = ItemRepo();
-    final CartRepo firebaseCartService = CartRepo();
-    final OrderItemRepo firebaseOrderService = OrderItemRepo();
-    final PaymentRepo firebasePaymentService =
-        PaymentRepo(); // Unused for now, but available
-
-    // Initialize your FirebaseAuthService, injecting its dependencies
-    final FirebaseAuthService firebaseAuthService = FirebaseAuthService(
-      firebaseUserService,
+    return MaterialApp(
+      title: 'E-commerce App',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: const AppHome(),
+      routes: {
+        '/profile':
+            (context) => ChangeNotifierProvider(
+              create: (context) => getIt<ProfileViewModel>(),
+              child: const ProfileView(),
+            ),
+        // Add other routes as needed
+      },
     );
+  }
+}
 
-    // Initialize all Use Cases, injecting their dependencies (repositories/other services)
-    final SignUpUseCase signUpUseCase = SignUpUseCase(firebaseAuthService);
-    final SignInUseCase signInUseCase = SignInUseCase(firebaseAuthService);
-    final SignOutUseCase signOutUseCase = SignOutUseCase(firebaseAuthService);
-    final AddItemToCartUseCase addItemToCartUseCase = AddItemToCartUseCase(
-      firebaseCartService,
-      firebaseItemService,
-    );
-    final PlaceOrderUseCase placeOrderUseCase = PlaceOrderUseCase(
-      firebaseCartService,
-      firebaseOrderService,
-      firebaseItemService,
-      firebaseUserService,
-    );
-    final GetAllItemsUseCase getAllProductsUseCase = GetAllItemsUseCase(
-      firebaseItemService,
-    ); // Used by ItemListViewModel
+class AppHome extends StatelessWidget {
+  const AppHome({Key? key}) : super(key: key);
 
-    return MultiProvider(
-      providers: [
-        // Provide concrete Repository implementations (as their abstract types)
-        // This is crucial for dependency injection into ViewModels.
-        Provider<UserRepo>(create: (_) => firebaseUserService),
-        Provider<ItemRepo>(create: (_) => firebaseItemService),
-        Provider<CartRepo>(create: (_) => firebaseCartService),
-        Provider<OrderItemRepo>(create: (_) => firebaseOrderService),
-        Provider<PaymentRepo>(create: (_) => firebasePaymentService),
-
-        // Provide Services (like FirebaseAuthService)
-        Provider<FirebaseAuthService>(create: (_) => firebaseAuthService),
-
-        // Provide Use Cases
-        Provider<SignUpUseCase>(create: (_) => signUpUseCase),
-        Provider<SignInUseCase>(create: (_) => signInUseCase),
-        Provider<SignOutUseCase>(create: (_) => signOutUseCase),
-        Provider<AddItemToCartUseCase>(create: (_) => addItemToCartUseCase),
-        Provider<PlaceOrderUseCase>(create: (_) => placeOrderUseCase),
-        Provider<GetAllItemsUseCase>(create: (_) => getAllProductsUseCase),
-        ChangeNotifierProvider(
-          create:
-              (context) => ProfileViewModel(
-                Provider.of<UserRepo>(context, listen: false),
-              ),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('E-commerce Home')),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text('Welcome to E-commerce App'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, '/profile');
+              },
+              child: const Text('Go to Profile'),
+            ),
+          ],
         ),
-        ChangeNotifierProvider(
-          create:
-              (context) => ItemListViewModel(
-                Provider.of<ItemRepo>(context, listen: false),
-                Provider.of<AddItemToCartUseCase>(context, listen: false),
-              ),
-        ),
-        ChangeNotifierProvider(
-          create:
-              (context) => CartViewModel(
-                Provider.of<CartRepo>(context, listen: false),
-                Provider.of<ItemRepo>(
-                  context,
-                  listen: false,
-                ), // Dependency needed for CartViewModel
-                Provider.of<PlaceOrderUseCase>(
-                  context,
-                  listen: false,
-                ), // Dependency needed for CartViewModel
-              ),
-        ),
-        ChangeNotifierProvider(
-          create:
-              (context) => OrderListViewModel(
-                Provider.of<OrderItemRepo>(context, listen: false),
-              ),
-        ),
-        // Add more providers here if you have other global services or view models that aren't tied to a specific route.
-        // Page-specific ViewModels will be provided in onGenerateRoute as shown in app_router.dart
-      ],
-      child: MaterialApp(
-        title: 'E-commerce App',
-        theme: ThemeData(
-          primarySwatch: Colors.blueGrey,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.blueGrey,
-            foregroundColor: Colors.white,
-          ),
-        ),
-        // Use onGenerateRoute for centralized routing
-        onGenerateRoute: AppRouter.onGenerateRoute,
-        initialRoute: AppRoutes.authRoute, // Start at the authentication screen
       ),
+    );
+  }
+}
+
+// Alternative if you prefer to use the DIContainer approach
+class MyAppWithDIContainer extends StatelessWidget {
+  const MyAppWithDIContainer({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'E-commerce App',
+      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      home: const AppHome(),
+      routes: {
+        '/profile':
+            (context) => ChangeNotifierProvider(
+              create: (context) => DIContainer().createProfileViewModel(),
+              child: const ProfileView(),
+            ),
+      },
     );
   }
 }

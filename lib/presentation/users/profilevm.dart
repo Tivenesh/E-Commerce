@@ -1,129 +1,197 @@
-import 'dart:async';
-// ** FIX: Import Cloud Firestore to use the Timestamp class **
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:e_commerce/data/models/user.dart';
 import 'package:e_commerce/data/services/user_repo.dart';
-import 'package:e_commerce/data/usecases/auth/signout.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:flutter/foundation.dart';
-import 'package:e_commerce/utils/logger.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart' as auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../data/models/user.dart';
+import '../../data/services/user_repo.dart';
+import '../../data/usecases/auth/register_seller_usecase.dart';
 
-/// ViewModel for the user's profile screen.
-/// Manages the current user's state, profile updates, and signing out.
 class ProfileViewModel extends ChangeNotifier {
   final UserRepo _userRepository;
-  final SignOutUseCase _signOutUseCase;
-  final firebase_auth.FirebaseAuth _firebaseAuth =
-      firebase_auth.FirebaseAuth.instance;
+  final RegisterSellerUseCase _registerSellerUseCase;
 
-  StreamSubscription? _userSubscription;
+  ProfileViewModel(this._userRepository, this._registerSellerUseCase);
 
-  User? _currentUser;
-  User? get currentUser => _currentUser;
-
+  // State variables
+  User? _currentUserProfile;
   bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
   String? _errorMessage;
+  bool _isRegistringSeller = false;
+
+  // Getters
+  User? get currentUserProfile => _currentUserProfile;
+  bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isRegistringSeller => _isRegistringSeller;
+  bool get isSeller => _currentUserProfile?.isSeller ?? false;
 
-  ProfileViewModel({
-    required UserRepo userRepository,
-    required SignOutUseCase signOutUseCase,
-  }) : _userRepository = userRepository,
-       _signOutUseCase = signOutUseCase {
-    _listenToAuthState();
-  }
-
-  void _listenToAuthState() {
-    _firebaseAuth.authStateChanges().listen((firebaseUser) {
-      if (firebaseUser != null) {
-        _listenToUserProfile(firebaseUser.uid);
-      } else {
-        _currentUser = null;
-        _userSubscription?.cancel();
-        notifyListeners();
-      }
-    });
-  }
-
-  void _listenToUserProfile(String uid) {
-    _isLoading = true;
-    notifyListeners();
-    _userSubscription = _userRepository
-        .getUserStream(uid)
-        .listen(
-          (user) {
-            _currentUser = user;
-            _isLoading = false;
-            _errorMessage = null;
-            notifyListeners();
-            appLogger.d(
-              'ProfileViewModel: User profile updated for ${user?.email}',
-            );
-          },
-          onError: (error) {
-            _isLoading = false;
-            _errorMessage = 'Failed to load profile: ${error.toString()}';
-            appLogger.e('ProfileViewModel: Error listening to profile: $error');
-            notifyListeners();
-          },
-        );
-  }
-
-  /// Updates the current user's profile information.
-  Future<void> updateProfile({
-    required String username,
-    required String fullName,
-    required String address,
-    required String phoneNumber,
-    required String profileImageUrl,
-  }) async {
-    if (_currentUser == null) return;
+  // Load current user profile
+  Future<void> loadUserProfile() async {
+    if (auth.FirebaseAuth.instance.currentUser == null) return;
 
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final updatedUser = _currentUser!.copyWith(
-        username: username,
-        fullName: fullName,
-        address: address,
-        phoneNumber: phoneNumber,
-        profileImageUrl: profileImageUrl,
-        // ** FIX: Use Timestamp.now() instead of DateTime.now() **
-        updatedAt: Timestamp.now(),
-      );
-      await _userRepository.updateUser(updatedUser);
-      appLogger.i('Profile updated successfully for user ${_currentUser!.id}');
+      final userId = auth.FirebaseAuth.instance.currentUser!.uid;
+      _currentUserProfile = await _userRepository.getUserById(userId);
+      _errorMessage = null;
     } catch (e) {
-      _errorMessage = 'Failed to update profile: ${e.toString()}';
-      appLogger.e('Error updating profile: $e');
-      // Re-throw so the view can catch it
-      rethrow;
+      _errorMessage = e.toString();
+      _currentUserProfile = null;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  /// Signs out the current user.
-  Future<void> signOut() async {
+  // Update user profile
+  Future<bool> updateProfile({
+    String? fullName,
+    String? username,
+    String? address,
+    String? phoneNumber,
+    String? gender,
+    Timestamp? dateOfBirth,
+    String? profileImageUrl,
+  }) async {
+    if (_currentUserProfile == null) return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
     try {
-      await _signOutUseCase();
-      _userSubscription?.cancel();
-      _currentUser = null;
-      appLogger.i('ProfileViewModel: User signed out.');
+      final updatedUser = _currentUserProfile!.copyWith(
+        fullName: fullName ?? _currentUserProfile!.fullName,
+        username: username ?? _currentUserProfile!.username,
+        address: address ?? _currentUserProfile!.address,
+        phoneNumber: phoneNumber ?? _currentUserProfile!.phoneNumber,
+        gender: gender ?? _currentUserProfile!.gender,
+        dateOfBirth: dateOfBirth ?? _currentUserProfile!.dateOfBirth,
+        profileImageUrl:
+            profileImageUrl ?? _currentUserProfile!.profileImageUrl,
+        updatedAt: Timestamp.now(),
+      );
+
+      await _userRepository.updateUser(updatedUser);
+      _currentUserProfile = updatedUser;
+      _errorMessage = null;
+      notifyListeners();
+      return true;
     } catch (e) {
-      appLogger.e('Error signing out: $e');
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-    // No need to notify listeners, the auth stream will handle UI changes
   }
 
-  @override
-  void dispose() {
-    _userSubscription?.cancel();
-    super.dispose();
+  // Register as seller
+  Future<bool> registerAsSeller({
+    required String businessName,
+    required String businessAddress,
+    required String businessContactEmail,
+    required String businessPhoneNumber,
+    String? businessDescription,
+  }) async {
+    if (_currentUserProfile == null) return false;
+
+    _isRegistringSeller = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final success = await _registerSellerUseCase.execute(
+        userId: _currentUserProfile!.id,
+        businessName: businessName,
+        businessAddress: businessAddress,
+        businessContactEmail: businessContactEmail,
+        businessPhoneNumber: businessPhoneNumber,
+        businessDescription: businessDescription,
+      );
+
+      if (success) {
+        // Reload user profile to get updated data
+        await loadUserProfile();
+      }
+
+      return success;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isRegistringSeller = false;
+      notifyListeners();
+    }
+  }
+
+  // Update seller information
+  Future<bool> updateSellerInfo({
+    String? businessName,
+    String? businessAddress,
+    String? businessContactEmail,
+    String? businessPhoneNumber,
+    String? businessDescription,
+  }) async {
+    if (_currentUserProfile == null || !_currentUserProfile!.isSeller)
+      return false;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final success = await _registerSellerUseCase.updateSellerInfo(
+        userId: _currentUserProfile!.id,
+        businessName: businessName,
+        businessAddress: businessAddress,
+        businessContactEmail: businessContactEmail,
+        businessPhoneNumber: businessPhoneNumber,
+        businessDescription: businessDescription,
+      );
+
+      if (success) {
+        // Reload user profile to get updated data
+        await loadUserProfile();
+      }
+
+      return success;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Clear error message
+  void clearError() {
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  // Refresh profile data
+  Future<void> refreshProfile() async {
+    await loadUserProfile();
+  }
+
+  // Sign out
+  Future<void> signOut() async {
+    try {
+      await auth.FirebaseAuth.instance.signOut();
+      _currentUserProfile = null;
+      _errorMessage = null;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+    }
   }
 }

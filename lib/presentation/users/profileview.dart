@@ -1,186 +1,291 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:e_commerce/presentation/users/profilevm.dart';
+import 'profilevm.dart';
+import 'seller_registration_dialog.dart';
 
-/// The user profile page (View) for displaying and editing user information.
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+class ProfileView extends StatefulWidget {
+  const ProfileView({Key? key}) : super(key: key);
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<ProfileView> createState() => _ProfileViewState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _phoneNumberController = TextEditingController();
-  final TextEditingController _profileImageUrlController =
-      TextEditingController();
-
+class _ProfileViewState extends State<ProfileView> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with current profile data when available
+    // Load user profile when the view initializes
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-      if (viewModel.currentUserProfile != null) {
-        _usernameController.text = viewModel.currentUserProfile!.username;
-        _addressController.text = viewModel.currentUserProfile!.address ?? '';
-        _phoneNumberController.text =
-            viewModel.currentUserProfile!.phoneNumber ?? '';
-        _profileImageUrlController.text =
-            viewModel.currentUserProfile!.profileImageUrl ?? '';
-      }
-      // Listen to changes in the profile data
-      viewModel.addListener(_updateControllers);
+      context.read<ProfileViewModel>().loadUserProfile();
     });
-  }
-
-  void _updateControllers() {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    if (viewModel.currentUserProfile != null) {
-      // Only update if the content has actually changed to avoid cursor jumps
-      if (_usernameController.text != viewModel.currentUserProfile!.username) {
-        _usernameController.text = viewModel.currentUserProfile!.username;
-      }
-      if (_addressController.text !=
-          (viewModel.currentUserProfile!.address ?? '')) {
-        _addressController.text = viewModel.currentUserProfile!.address ?? '';
-      }
-      if (_phoneNumberController.text !=
-          (viewModel.currentUserProfile!.phoneNumber ?? '')) {
-        _phoneNumberController.text =
-            viewModel.currentUserProfile!.phoneNumber ?? '';
-      }
-      if (_profileImageUrlController.text !=
-          (viewModel.currentUserProfile!.profileImageUrl ?? '')) {
-        _profileImageUrlController.text =
-            viewModel.currentUserProfile!.profileImageUrl ?? '';
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    viewModel.removeListener(_updateControllers);
-    _usernameController.dispose();
-    _addressController.dispose();
-    _phoneNumberController.dispose();
-    _profileImageUrlController.dispose();
-    super.dispose();
-  }
-
-  void _saveProfile() {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    viewModel.updateProfile(
-      username: _usernameController.text.trim(),
-      address: _addressController.text.trim(),
-      phoneNumber: _phoneNumberController.text.trim(),
-      profileImageUrl: _profileImageUrlController.text.trim(),
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          viewModel.errorMessage ?? 'Profile updated successfully!',
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      appBar: AppBar(
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () {
+              context.read<ProfileViewModel>().refreshProfile();
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () async {
+              await context.read<ProfileViewModel>().signOut();
+              if (mounted) {
+                Navigator.of(context).pushReplacementNamed('/login');
+              }
+            },
+          ),
+        ],
+      ),
       body: Consumer<ProfileViewModel>(
         builder: (context, viewModel, child) {
           if (viewModel.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (viewModel.errorMessage != null) {
             return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  viewModel.errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red, fontSize: 16),
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Error: ${viewModel.errorMessage}',
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      viewModel.clearError();
+                      viewModel.refreshProfile();
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
               ),
             );
           }
-          final user = viewModel.currentUserProfile;
-          if (user == null) {
-            return const Center(child: Text('User profile not available.'));
+
+          if (viewModel.currentUserProfile == null) {
+            return const Center(child: Text('No user profile found'));
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundImage:
-                        user.profileImageUrl != null &&
-                                user.profileImageUrl!.isNotEmpty
-                            ? NetworkImage(user.profileImageUrl!)
-                            : null,
-                    child:
-                        (user.profileImageUrl == null ||
-                                user.profileImageUrl!.isEmpty)
-                            ? const Icon(
-                              Icons.person,
-                              size: 60,
-                              color: Colors.blueGrey,
-                            )
-                            : null,
-                    backgroundColor: Colors.blueGrey[50],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _buildTextField(_usernameController, 'Username', Icons.person),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _addressController,
-                  'Address',
-                  Icons.location_on,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _phoneNumberController,
-                  'Phone Number',
-                  Icons.phone,
-                  TextInputType.phone,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _profileImageUrlController,
-                  'Profile Image URL',
-                  Icons.image,
-                  TextInputType.url,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: viewModel.isLoading ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueGrey[700],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+          final user = viewModel.currentUserProfile!;
+
+          return RefreshIndicator(
+            onRefresh: viewModel.refreshProfile,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Profile Picture and Basic Info
+                  Center(
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 50,
+                          backgroundImage:
+                              user.profileImageUrl != null
+                                  ? NetworkImage(user.profileImageUrl!)
+                                  : null,
+                          child:
+                              user.profileImageUrl == null
+                                  ? Text(
+                                    user.fullName?.isNotEmpty == true
+                                        ? user.fullName![0].toUpperCase()
+                                        : user.username[0].toUpperCase(),
+                                    style: const TextStyle(fontSize: 32),
+                                  )
+                                  : null,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          user.fullName ?? user.username,
+                          style: Theme.of(context).textTheme.headlineSmall,
+                        ),
+                        Text(
+                          user.email,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(color: Colors.grey[600]),
+                        ),
+                      ],
                     ),
                   ),
-                  child:
-                      viewModel.isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                            'Save Profile',
-                            style: TextStyle(fontSize: 18),
+                  const SizedBox(height: 24),
+
+                  // Role Status
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Account Status',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                ),
-              ],
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 8,
+                            children:
+                                user.roles.map((role) {
+                                  return Chip(
+                                    label: Text(role.toUpperCase()),
+                                    backgroundColor:
+                                        role == 'seller'
+                                            ? Colors.green[100]
+                                            : Colors.blue[100],
+                                  );
+                                }).toList(),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Personal Information
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Personal Information',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildInfoRow('Username', user.username),
+                          if (user.fullName != null)
+                            _buildInfoRow('Full Name', user.fullName!),
+                          if (user.phoneNumber != null)
+                            _buildInfoRow('Phone', user.phoneNumber!),
+                          if (user.address != null)
+                            _buildInfoRow('Address', user.address!),
+                          if (user.gender != null)
+                            _buildInfoRow('Gender', user.gender!),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  // Seller Information (if user is a seller)
+                  if (user.isSeller) ...[
+                    const SizedBox(height: 16),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Business Information',
+                                  style:
+                                      Theme.of(context).textTheme.titleMedium,
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.edit),
+                                  onPressed: () {
+                                    _showUpdateSellerDialog(context, user);
+                                  },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            if (user.businessName != null)
+                              _buildInfoRow(
+                                'Business Name',
+                                user.businessName!,
+                              ),
+                            if (user.businessAddress != null)
+                              _buildInfoRow(
+                                'Business Address',
+                                user.businessAddress!,
+                              ),
+                            if (user.businessContactEmail != null)
+                              _buildInfoRow(
+                                'Business Email',
+                                user.businessContactEmail!,
+                              ),
+                            if (user.businessPhoneNumber != null)
+                              _buildInfoRow(
+                                'Business Phone',
+                                user.businessPhoneNumber!,
+                              ),
+                            if (user.businessDescription != null)
+                              _buildInfoRow(
+                                'Description',
+                                user.businessDescription!,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 24),
+
+                  // Action Buttons
+                  if (!user.isSeller)
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            viewModel.isRegistringSeller
+                                ? null
+                                : () {
+                                  _showSellerRegistrationDialog(context);
+                                },
+                        icon:
+                            viewModel.isRegistringSeller
+                                ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Icon(Icons.store),
+                        label: Text(
+                          viewModel.isRegistringSeller
+                              ? 'Registering...'
+                              : 'Become a Seller',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        // Navigate to edit profile page
+                        Navigator.pushNamed(context, '/edit-profile');
+                      },
+                      icon: const Icon(Icons.edit),
+                      label: const Text('Edit Profile'),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -188,20 +293,49 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon, [
-    TextInputType keyboardType = TextInputType.text,
-  ]) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        prefixIcon: Icon(icon),
+  Widget _buildInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
       ),
-      keyboardType: keyboardType,
+    );
+  }
+
+  void _showSellerRegistrationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const SellerRegistrationDialog(),
+    );
+  }
+
+  void _showUpdateSellerDialog(BuildContext context, user) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => SellerRegistrationDialog(
+            isUpdate: true,
+            initialBusinessName: user.businessName,
+            initialBusinessAddress: user.businessAddress,
+            initialBusinessContactEmail: user.businessContactEmail,
+            initialBusinessPhoneNumber: user.businessPhoneNumber,
+            initialBusinessDescription: user.businessDescription,
+          ),
     );
   }
 }

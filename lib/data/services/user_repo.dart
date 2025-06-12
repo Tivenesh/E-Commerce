@@ -42,94 +42,115 @@ class UserRepo {
     }
   }
 
-  /// Provides a real-time stream for a single user document.
-  Stream<User?> getUserStream(String userId) {
-    return _firestore.collection(_collectionName).doc(userId).snapshots().map((
-      snapshot,
-    ) {
-      if (snapshot.exists) {
-        return User.fromFirestore(snapshot);
-      }
-      return null;
-    });
-  }
-
-  /// Updates specific fields of an existing user document.
+  // Update existing user
   Future<void> updateUser(User user) async {
     try {
       await _firestore
           .collection(_collectionName)
           .doc(user.id)
           .update(user.toJson());
-      appLogger.i('User updated successfully: ${user.username}');
-    } on FirebaseException catch (e) {
-      appLogger.i('Firebase Exception updating user: ${e.message}');
-      rethrow;
     } catch (e) {
-      appLogger.e('Error updating user: $e');
-      rethrow;
+      throw Exception('Failed to update user: ${e.toString()}');
     }
   }
 
-  /// Upgrades a user to a seller.
-  /// This adds the 'seller' role and updates their business information.
-  Future<void> upgradeToSeller(
-    String userId, {
-    required String businessName,
-    required String businessAddress,
-    String? businessContactEmail,
-    String? businessPhoneNumber,
-    String? businessDescription,
-  }) async {
-    try {
-      final userDocRef = _firestore.collection(_collectionName).doc(userId);
-
-      // Using a transaction to ensure atomicity
-      await _firestore.runTransaction((transaction) async {
-        final snapshot = await transaction.get(userDocRef);
-
-        if (!snapshot.exists) {
-          throw Exception("User does not exist!");
-        }
-
-        // Get current roles, or default to an empty list
-        List<String> currentRoles = List<String>.from(
-          snapshot.data()?['roles'] ?? [],
-        );
-
-        // Add 'seller' role if it's not already there
-        if (!currentRoles.contains('seller')) {
-          currentRoles.add('seller');
-        }
-
-        transaction.update(userDocRef, {
-          'roles': currentRoles,
-          'businessName': businessName,
-          'businessAddress': businessAddress,
-          'businessContactEmail': businessContactEmail,
-          'businessPhoneNumber': businessPhoneNumber,
-          'businessDescription': businessDescription,
-          'updatedAt': Timestamp.now(),
-        });
-      });
-      appLogger.i('User $userId upgraded to seller successfully.');
-    } catch (e) {
-      appLogger.e('Error upgrading user to seller: $e', error: e);
-      throw Exception('Failed to upgrade to seller.');
-    }
-  }
-
-  /// Deletes a user document by its ID.
+  // Delete user
   Future<void> deleteUser(String userId) async {
     try {
       await _firestore.collection(_collectionName).doc(userId).delete();
-      appLogger.i('User deleted successfully: $userId');
-    } on FirebaseException catch (e) {
-      appLogger.i('Firebase Exception deleting user: ${e.message}');
-      rethrow;
     } catch (e) {
-      appLogger.e('Error deleting user: $e');
-      rethrow;
+      throw Exception('Failed to delete user: ${e.toString()}');
+    }
+  }
+
+  // Get users by role
+  Future<List<User>> getUsersByRole(String role) async {
+    try {
+      final querySnapshot =
+          await _firestore
+              .collection(_collectionName)
+              .where('roles', arrayContains: role)
+              .get();
+
+      return querySnapshot.docs.map((doc) => User.fromFirestore(doc)).toList();
+    } catch (e) {
+      throw Exception('Failed to get users by role: ${e.toString()}');
+    }
+  }
+
+  // Get all sellers
+  Future<List<User>> getAllSellers() async {
+    return await getUsersByRole('seller');
+  }
+
+  // Get all buyers
+  Future<List<User>> getAllBuyers() async {
+    return await getUsersByRole('buyer');
+  }
+
+  // Stream user data for real-time updates
+  Stream<User?> getUserStream(String userId) {
+    return _firestore
+        .collection(_collectionName)
+        .doc(userId)
+        .snapshots()
+        .map((doc) => doc.exists ? User.fromFirestore(doc) : null);
+  }
+
+  // Check if user exists
+  Future<bool> userExists(String userId) async {
+    try {
+      final doc =
+          await _firestore.collection(_collectionName).doc(userId).get();
+      return doc.exists;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Update user role (add seller role)
+  Future<void> addSellerRole(String userId) async {
+    try {
+      final user = await getUserById(userId);
+      if (user == null) {
+        throw Exception('User not found');
+      }
+
+      if (!user.isSeller) {
+        final updatedRoles = List<String>.from(user.roles)..add('seller');
+        await _firestore.collection(_collectionName).doc(userId).update({
+          'roles': updatedRoles,
+          'updatedAt': Timestamp.now(),
+        });
+      }
+    } catch (e) {
+      throw Exception('Failed to add seller role: ${e.toString()}');
+    }
+  }
+
+  // Remove seller role
+  Future<void> removeSellerRole(String userId) async {
+    try {
+      final user = await getUserById(userId);
+      if (user == null) {
+        throw Exception('User not found');
+      }
+
+      if (user.isSeller) {
+        final updatedRoles = List<String>.from(user.roles)..remove('seller');
+        await _firestore.collection(_collectionName).doc(userId).update({
+          'roles': updatedRoles,
+          'updatedAt': Timestamp.now(),
+          // Clear seller-specific fields
+          'businessName': null,
+          'businessAddress': null,
+          'businessContactEmail': null,
+          'businessPhoneNumber': null,
+          'businessDescription': null,
+        });
+      }
+    } catch (e) {
+      throw Exception('Failed to remove seller role: ${e.toString()}');
     }
   }
 }

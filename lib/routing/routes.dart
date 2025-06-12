@@ -43,7 +43,7 @@ class AppRouter {
 
       case profileRoute:
         return MaterialPageRoute(
-          builder: (_) => authGuard(const ProfilePage()),
+          builder: (_) => authGuard(const ProfileView()),
         );
 
       case editProfileRoute:
