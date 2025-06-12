@@ -10,26 +10,21 @@ import 'package:e_commerce/data/usecases/auth/signup.dart';
 import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart';
 import 'package:e_commerce/data/usecases/items/get_all_item_usecase.dart';
 import 'package:e_commerce/data/usecases/orders/place_order_usecase.dart';
+import 'package:e_commerce/data/usecases/user/upgrade_to_seller_usecase.dart';
 import 'package:e_commerce/presentation/authscreen.dart';
 import 'package:e_commerce/presentation/carts/cartvm.dart';
 import 'package:e_commerce/presentation/items/itemlistvm.dart';
 import 'package:e_commerce/presentation/orders/orderlistvm.dart';
+import 'package:e_commerce/presentation/seller/seller_dashboard_vm.dart';
+import 'package:e_commerce/presentation/seller/seller_registration_vm.dart';
 import 'package:e_commerce/presentation/testhome.dart';
 import 'package:e_commerce/presentation/users/profilevm.dart';
 import 'package:e_commerce/routing/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart'
-    as firebase_auth; // Alias for Firebase Auth's User
-import 'package:provider/provider.dart'; // For Provider, Consumer, Selector
+import 'package:provider/provider.dart';
 
-// Firebase options
 import 'firebase_options.dart';
-
-// Models
-
-// Utils
-import 'package:e_commerce/utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,93 +38,78 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Initialize all your concrete services (Data Layer implementations)
-    // These are often instantiated once and provided throughout the app.
-    final UserRepo firebaseUserService = UserRepo();
-    final ItemRepo firebaseItemService = ItemRepo();
-    final CartRepo firebaseCartService = CartRepo();
-    final OrderItemRepo firebaseOrderService = OrderItemRepo();
-    final PaymentRepo firebasePaymentService =
-        PaymentRepo(); // Unused for now, but available
-
-    // Initialize your FirebaseAuthService, injecting its dependencies
+    // --- Data Layer Services / Repositories ---
+    final UserRepo userRepo = UserRepo();
+    final ItemRepo itemRepo = ItemRepo();
+    final CartRepo cartRepo = CartRepo();
+    final OrderItemRepo orderItemRepo = OrderItemRepo();
+    final PaymentRepo paymentRepo = PaymentRepo();
     final FirebaseAuthService firebaseAuthService = FirebaseAuthService(
-      firebaseUserService,
+      userRepo,
     );
 
-    // Initialize all Use Cases, injecting their dependencies (repositories/other services)
+    // --- Domain Layer Use Cases ---
     final SignUpUseCase signUpUseCase = SignUpUseCase(firebaseAuthService);
     final SignInUseCase signInUseCase = SignInUseCase(firebaseAuthService);
     final SignOutUseCase signOutUseCase = SignOutUseCase(firebaseAuthService);
     final AddItemToCartUseCase addItemToCartUseCase = AddItemToCartUseCase(
-      firebaseCartService,
-      firebaseItemService,
+      cartRepo,
+      itemRepo,
     );
     final PlaceOrderUseCase placeOrderUseCase = PlaceOrderUseCase(
-      firebaseCartService,
-      firebaseOrderService,
-      firebaseItemService,
-      firebaseUserService,
+      cartRepo,
+      orderItemRepo,
+      itemRepo,
+      userRepo,
     );
-    final GetAllItemsUseCase getAllProductsUseCase = GetAllItemsUseCase(
-      firebaseItemService,
-    ); // Used by ItemListViewModel
+    final GetAllItemsUseCase getAllItemsUseCase = GetAllItemsUseCase(itemRepo);
+    final UpgradeToSellerUseCase upgradeToSellerUseCase =
+        UpgradeToSellerUseCase(userRepo);
 
     return MultiProvider(
       providers: [
-        // Provide concrete Repository implementations (as their abstract types)
-        // This is crucial for dependency injection into ViewModels.
-        Provider<UserRepo>(create: (_) => firebaseUserService),
-        Provider<ItemRepo>(create: (_) => firebaseItemService),
-        Provider<CartRepo>(create: (_) => firebaseCartService),
-        Provider<OrderItemRepo>(create: (_) => firebaseOrderService),
-        Provider<PaymentRepo>(create: (_) => firebasePaymentService),
+        // --- Repositories & Services ---
+        Provider<UserRepo>.value(value: userRepo),
+        Provider<ItemRepo>.value(value: itemRepo),
+        Provider<CartRepo>.value(value: cartRepo),
+        Provider<OrderItemRepo>.value(value: orderItemRepo),
+        Provider<PaymentRepo>.value(value: paymentRepo),
+        Provider<FirebaseAuthService>.value(value: firebaseAuthService),
 
-        // Provide Services (like FirebaseAuthService)
-        Provider<FirebaseAuthService>(create: (_) => firebaseAuthService),
+        // --- Use Cases ---
+        Provider<SignUpUseCase>.value(value: signUpUseCase),
+        Provider<SignInUseCase>.value(value: signInUseCase),
+        Provider<SignOutUseCase>.value(value: signOutUseCase),
+        Provider<AddItemToCartUseCase>.value(value: addItemToCartUseCase),
+        Provider<PlaceOrderUseCase>.value(value: placeOrderUseCase),
+        Provider<GetAllItemsUseCase>.value(value: getAllItemsUseCase),
+        Provider<UpgradeToSellerUseCase>.value(value: upgradeToSellerUseCase),
 
-        // Provide Use Cases
-        Provider<SignUpUseCase>(create: (_) => signUpUseCase),
-        Provider<SignInUseCase>(create: (_) => signInUseCase),
-        Provider<SignOutUseCase>(create: (_) => signOutUseCase),
-        Provider<AddItemToCartUseCase>(create: (_) => addItemToCartUseCase),
-        Provider<PlaceOrderUseCase>(create: (_) => placeOrderUseCase),
-        Provider<GetAllItemsUseCase>(create: (_) => getAllProductsUseCase),
+        // --- ViewModels (globally accessible) ---
         ChangeNotifierProvider(
-          create:
-              (context) => ProfileViewModel(
-                Provider.of<UserRepo>(context, listen: false),
-              ),
+          create: (context) => ProfileViewModel(context.read<UserRepo>()),
         ),
         ChangeNotifierProvider(
           create:
               (context) => ItemListViewModel(
-                Provider.of<ItemRepo>(context, listen: false),
-                Provider.of<AddItemToCartUseCase>(context, listen: false),
+                context.read<ItemRepo>(),
+                context.read<AddItemToCartUseCase>(),
               ),
         ),
         ChangeNotifierProvider(
           create:
               (context) => CartViewModel(
-                Provider.of<CartRepo>(context, listen: false),
-                Provider.of<ItemRepo>(
-                  context,
-                  listen: false,
-                ), // Dependency needed for CartViewModel
-                Provider.of<PlaceOrderUseCase>(
-                  context,
-                  listen: false,
-                ), // Dependency needed for CartViewModel
+                context.read<CartRepo>(),
+                context.read<ItemRepo>(),
+                context.read<PlaceOrderUseCase>(),
               ),
         ),
         ChangeNotifierProvider(
           create:
-              (context) => OrderListViewModel(
-                Provider.of<OrderItemRepo>(context, listen: false),
-              ),
+              (context) => OrderListViewModel(context.read<OrderItemRepo>()),
         ),
-        // Add more providers here if you have other global services or view models that aren't tied to a specific route.
-        // Page-specific ViewModels will be provided in onGenerateRoute as shown in app_router.dart
+        ChangeNotifierProvider(create: (context) => SellerDashboardViewModel()),
+        // SellerRegistrationViewModel is provided on its specific route in AppRouter
       ],
       child: MaterialApp(
         title: 'E-commerce App',
@@ -141,9 +121,8 @@ class MyApp extends StatelessWidget {
             foregroundColor: Colors.white,
           ),
         ),
-        // Use onGenerateRoute for centralized routing
         onGenerateRoute: AppRouter.onGenerateRoute,
-        initialRoute: AppRoutes.authRoute, // Start at the authentication screen
+        initialRoute: AppRoutes.authRoute,
       ),
     );
   }

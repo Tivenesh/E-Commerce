@@ -1,35 +1,52 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth; // Alias Firebase Auth's User to avoid conflict
+import 'package:firebase_auth/firebase_auth.dart'
+    as firebase_auth; // Alias Firebase Auth's User to avoid conflict
 
 /// Represents a User in the e-commerce application.
 /// Its `id` property should match the Firebase Authentication UID.
 class User {
   final String id; // This will be the Firebase Auth UID
-  final String? fullName; 
+  final String? fullName;
   final String username;
   final String email;
-  final Timestamp? dateOfBirth; 
+  final Timestamp? dateOfBirth;
   final String? profileImageUrl;
   final String? address;
   final String? phoneNumber;
   final Timestamp createdAt;
   final Timestamp updatedAt;
-  final String? gender;     
+  final String? gender;
+  // New fields specific to sellers (can be null for buyers)
+  final String? businessName;
+  final String? businessAddress;
+  final String? businessContactEmail;
+  final String? businessPhoneNumber;
+  final String? businessDescription;
+  final List<String> roles; // 'buyer', 'seller'
 
   User({
     required this.id,
     required this.email,
     required this.username,
+    // roleName is now required in the constructor, with a default 'buyer'
+    // in factories where it might not be explicitly set.
+    this.roles = const ['buyer'], // Default role
     this.profileImageUrl,
     this.address,
     this.phoneNumber,
     required this.createdAt,
     required this.updatedAt,
-    // New fields in constructor
     this.fullName,
     this.gender,
     this.dateOfBirth,
+    // Seller specific fields
+    this.businessName,
+    this.businessAddress,
+    this.businessContactEmail,
+    this.businessPhoneNumber,
+    this.businessDescription,
   });
+  bool get isSeller => roles.contains('seller');
 
   /// Converts a User object to a JSON map for Firestore.
   Map<String, dynamic> toJson() {
@@ -37,15 +54,21 @@ class User {
       'id': id,
       'email': email,
       'username': username,
+      'roles': roles, // Store only roleName
       'profileImageUrl': profileImageUrl,
       'address': address,
       'phoneNumber': phoneNumber,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
-      // New fields in toJson
       'fullName': fullName,
       'gender': gender,
       'dateOfBirth': dateOfBirth,
+      // Include seller-specific fields in JSON
+      'businessName': businessName,
+      'businessAddress': businessAddress,
+      'businessContactEmail': businessContactEmail,
+      'businessPhoneNumber': businessPhoneNumber,
+      'businessDescription': businessDescription,
     };
   }
 
@@ -56,15 +79,23 @@ class User {
       id: doc.id,
       email: data['email'] ?? '',
       username: data['username'] ?? '',
+      // Provide a default 'buyer' if roleName is missing in Firestore
       profileImageUrl: data['profileImageUrl'],
       address: data['address'],
       phoneNumber: data['phoneNumber'],
       createdAt: data['createdAt'] ?? Timestamp.now(),
       updatedAt: data['updatedAt'] ?? Timestamp.now(),
-      // New fields in fromFirestore
       fullName: data['fullName'],
       gender: data['gender'],
-      dateOfBirth: data['dateOfBirth'], // Firestore's Timestamp maps directly
+      dateOfBirth: data['dateOfBirth'],
+      roles: List<String>.from(data['roles'] ?? ['buyer']),
+
+      // Assign seller-specific fields from Firestore
+      businessName: data['businessName'],
+      businessAddress: data['businessAddress'],
+      businessContactEmail: data['businessContactEmail'],
+      businessPhoneNumber: data['businessPhoneNumber'],
+      businessDescription: data['businessDescription'],
     );
   }
 
@@ -75,14 +106,20 @@ class User {
     return User(
       id: firebaseUser.uid,
       email: firebaseUser.email ?? 'no-email@example.com',
-      username: firebaseUser.displayName ?? 'New User', // Firebase Auth displayName for username
-      fullName: firebaseUser.displayName, // Often the same as displayName initially
+      username: firebaseUser.displayName ?? 'New User',
+      fullName: firebaseUser.displayName,
       profileImageUrl: firebaseUser.photoURL,
-      createdAt: Timestamp.now(), // Set initial creation time
-      updatedAt: Timestamp.now(), // Set initial update time
-      // New fields, initially null or default from Firebase Auth if available
-      gender: null, // Not available from Firebase Auth directly
-      dateOfBirth: null, // Not available from Firebase Auth directly
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+      gender: null,
+      dateOfBirth: null,
+      roles: ['buyer'], // Default role on creation
+      // Seller specific fields are null by default for new Firebase Auth users
+      businessName: null,
+      businessAddress: null,
+      businessContactEmail: null,
+      businessPhoneNumber: null,
+      businessDescription: null,
     );
   }
 
@@ -91,15 +128,21 @@ class User {
     String? id,
     String? email,
     String? username,
+    String? roleName, // Include roleName in copyWith
     String? profileImageUrl,
     String? address,
     String? phoneNumber,
     Timestamp? createdAt,
     Timestamp? updatedAt,
-    // New fields in copyWith
     String? fullName,
     String? gender,
     Timestamp? dateOfBirth,
+    String? businessName,
+    String? businessAddress,
+    String? businessContactEmail,
+    String? businessPhoneNumber,
+    String? businessDescription,
+    List<String>? roles,
   }) {
     return User(
       id: id ?? this.id,
@@ -110,14 +153,19 @@ class User {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      // New fields assignment in copyWith
       fullName: fullName ?? this.fullName,
       gender: gender ?? this.gender,
+      roles: roles ?? this.roles,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
+      businessName: businessName ?? this.businessName,
+      businessAddress: businessAddress ?? this.businessAddress,
+      businessContactEmail: businessContactEmail ?? this.businessContactEmail,
+      businessPhoneNumber: businessPhoneNumber ?? this.businessPhoneNumber,
+      businessDescription: businessDescription ?? this.businessDescription,
     );
   }
 
-  // --- Equality and Hashing (optional but good practice) ---
+  // --- Equality and Hashing ---
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -126,17 +174,37 @@ class User {
           id == other.id &&
           email == other.email &&
           username == other.username &&
-          fullName == other.fullName && // Include new fields in equality check
+          fullName == other.fullName &&
           gender == other.gender &&
-          dateOfBirth == other.dateOfBirth);
+          dateOfBirth == other.dateOfBirth &&
+          profileImageUrl == other.profileImageUrl &&
+          address == other.address &&
+          phoneNumber == other.phoneNumber &&
+          createdAt == other.createdAt &&
+          updatedAt == other.updatedAt &&
+          businessName == other.businessName &&
+          businessAddress == other.businessAddress &&
+          businessContactEmail == other.businessContactEmail &&
+          businessPhoneNumber == other.businessPhoneNumber &&
+          businessDescription == other.businessDescription);
 
   @override
   int get hashCode => Object.hash(
-        id,
-        email,
-        username,
-        fullName,
-        gender,
-        dateOfBirth,
-      );
+    id,
+    email,
+    username,
+    fullName,
+    gender,
+    dateOfBirth,
+    profileImageUrl,
+    address,
+    phoneNumber,
+    createdAt,
+    updatedAt,
+    businessName,
+    businessAddress,
+    businessContactEmail,
+    businessPhoneNumber,
+    businessDescription,
+  );
 }

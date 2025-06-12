@@ -1,13 +1,16 @@
 import 'package:e_commerce/data/models/user.dart';
 import 'package:e_commerce/data/services/user_repo.dart';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth; // For current user ID
+import 'package:firebase_auth/firebase_auth.dart'
+    as firebase_auth; // For current user ID
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 import 'package:e_commerce/utils/logger.dart';
+import 'dart:async';
 
 /// ViewModel for the user profile screen.
 class ProfileViewModel extends ChangeNotifier {
   final UserRepo _userRepository;
+  StreamSubscription? _userSubscription;
 
   User? _currentUserProfile;
   User? get currentUserProfile => _currentUserProfile;
@@ -128,5 +131,11 @@ class ProfileViewModel extends ChangeNotifier {
         error: e,
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _userSubscription?.cancel();
+    super.dispose();
   }
 }

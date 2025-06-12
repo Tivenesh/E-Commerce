@@ -1,3 +1,4 @@
+import 'package:e_commerce/routing/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:e_commerce/presentation/users/profilevm.dart';
@@ -20,6 +21,7 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    super.didChangeDependencies();
     // Initialize controllers with current profile data when available
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = Provider.of<ProfileViewModel>(context, listen: false);

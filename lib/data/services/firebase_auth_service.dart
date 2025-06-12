@@ -1,26 +1,33 @@
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:e_commerce/utils/logger.dart';
-import 'package:e_commerce/data/models/user.dart'; 
-import 'package:e_commerce/data/services/user_repo.dart'; 
+import 'package:e_commerce/data/models/user.dart';
+import 'package:e_commerce/data/services/user_repo.dart';
 
 /// A service class to handle all Firebase Authentication operations.
 /// It also interacts with the UserRepository to manage the Firestore user profile.
 class FirebaseAuthService {
-  final firebase_auth.FirebaseAuth _firebaseAuth = firebase_auth.FirebaseAuth.instance;
-  final UserRepo _userRepository; // Dependency on your Firestore user repository
+  final firebase_auth.FirebaseAuth _firebaseAuth =
+      firebase_auth.FirebaseAuth.instance;
+  final UserRepo
+  _userRepository; // Dependency on your Firestore user repository
 
   FirebaseAuthService(this._userRepository);
 
   /// Exposes the real-time authentication state changes.
   /// Streams null if no user is signed in, or a firebase_auth.User if signed in.
-  Stream<firebase_auth.User?> get authStateChanges => _firebaseAuth.authStateChanges();
+  Stream<firebase_auth.User?> get authStateChanges =>
+      _firebaseAuth.authStateChanges();
 
   /// Exposes the current authenticated Firebase User.
   firebase_auth.User? get currentUser => _firebaseAuth.currentUser;
 
   /// Signs up a new user with email and password.
   /// Also creates a corresponding User profile in Firestore.
-  Future<User?> signUpWithEmailAndPassword(String email, String password, String username) async {
+  Future<User?> signUpWithEmailAndPassword(
+    String email,
+    String password,
+    String username,
+  ) async {
     try {
       final userCredential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: email,
@@ -36,13 +43,18 @@ class FirebaseAuthService {
         final newUser = User.fromFirebaseAuthUser(firebaseUser).copyWith(
           username: username, // Ensure username is set from input
           email: email, // Ensure email is set from input
+          roles: ['buyer'], // Explicitly set buyer role on signup
         );
-        await _userRepository.addUser(newUser); // Add to Firestore via repository
+        await _userRepository.addUser(
+          newUser,
+        ); // Add to Firestore via repository
         return newUser;
       }
       return null;
     } on firebase_auth.FirebaseAuthException catch (e) {
-      appLogger.f('FirebaseAuth Exception during sign up: ${e.code} - ${e.message}');
+      appLogger.f(
+        'FirebaseAuth Exception during sign up: ${e.code} - ${e.message}',
+      );
       rethrow; // Re-throw to be handled by ViewModel/UI
     } catch (e) {
       appLogger.e('Error during sign up: $e');
@@ -51,7 +63,10 @@ class FirebaseAuthService {
   }
 
   /// Signs in an existing user with email and password.
-  Future<User?> signInWithEmailAndPassword(String email, String password) async {
+  Future<User?> signInWithEmailAndPassword(
+    String email,
+    String password,
+  ) async {
     try {
       final userCredential = await _firebaseAuth.signInWithEmailAndPassword(
         email: email,
@@ -74,7 +89,9 @@ class FirebaseAuthService {
       }
       return null;
     } on firebase_auth.FirebaseAuthException catch (e) {
-      appLogger.f('FirebaseAuth Exception during sign in: ${e.code} - ${e.message}');
+      appLogger.f(
+        'FirebaseAuth Exception during sign in: ${e.code} - ${e.message}',
+      );
       rethrow;
     } catch (e) {
       appLogger.e('Error during sign in: $e');
@@ -88,7 +105,9 @@ class FirebaseAuthService {
       await _firebaseAuth.sendPasswordResetEmail(email: email);
       appLogger.i('Password reset email sent to $email');
     } on firebase_auth.FirebaseAuthException catch (e) {
-      appLogger.f('FirebaseAuth Exception sending password reset: ${e.code} - ${e.message}');
+      appLogger.f(
+        'FirebaseAuth Exception sending password reset: ${e.code} - ${e.message}',
+      );
       rethrow;
     } catch (e) {
       appLogger.e('Error sending password reset: $e');
@@ -102,7 +121,9 @@ class FirebaseAuthService {
       await _firebaseAuth.signOut();
       appLogger.i('User signed out.');
     } on firebase_auth.FirebaseAuthException catch (e) {
-      appLogger.f('FirebaseAuth Exception during sign out: ${e.code} - ${e.message}');
+      appLogger.f(
+        'FirebaseAuth Exception during sign out: ${e.code} - ${e.message}',
+      );
       rethrow;
     } catch (e) {
       appLogger.e('Error during sign out: $e');
