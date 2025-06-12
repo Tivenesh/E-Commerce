@@ -1,41 +1,17 @@
+import 'package:e_commerce/data/services/item_repo.dart';
+import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart';
 import 'package:e_commerce/presentation/authscreen.dart';
-import 'package:flutter/material.dart';
-// import 'package:provider/provider.dart'; // Required for accessing providers in onGenerateRoute
-import 'package:firebase_auth/firebase_auth.dart'
-    as firebase_auth; // Import for auth state check
-
-// Models
-// import 'package:e_commerce/data/models/payment.dart';
-
-// Services (Data Layer) - Concrete implementations
-// import 'package:e_commerce/data/services/cart_repo.dart';
-// import 'package:e_commerce/data/services/item_repo.dart';
-// import 'package:e_commerce/data/services/order_item_repo.dart';
-// import 'package:e_commerce/data/services/payment_repo.dart';
-// import 'package:e_commerce/data/services/user_repo.dart';
-// import 'package:e_commerce/data/services/firebase_auth_service.dart';
-
-// // Domain Layer - Use Cases (for ViewModels to depend on)
-// import 'package:e_commerce/data/usecases/auth/signout.dart';
-// import 'package:e_commerce/data/usecases/auth/signin.dart';
-// import 'package:e_commerce/data/usecases/auth/signup.dart';
-// import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart';
-// import 'package:e_commerce/data/usecases/items/get_all_item_usecase.dart';
-// import 'package:e_commerce/data/usecases/orders/place_order_usecase.dart';
-
-// Presentation Layer - Views
-import 'package:e_commerce/presentation/testhome.dart';
-
-import 'package:e_commerce/presentation/users/profileview.dart';
-import 'package:e_commerce/presentation/orders/orderlistview.dart';
 import 'package:e_commerce/presentation/carts/cartview.dart';
+import 'package:e_commerce/presentation/items/item_detail_vm.dart';
 import 'package:e_commerce/presentation/items/itemlistview.dart';
+import 'package:e_commerce/presentation/orders/orderlistview.dart';
+import 'package:e_commerce/presentation/testhome.dart';
+import 'package:e_commerce/presentation/users/profileview.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
-// Presentation Layer - ViewModels
-// import 'package:e_commerce/presentation/users/profilevm.dart';
-// import 'package:e_commerce/presentation/orders/orderlistvm.dart';
-// import 'package:e_commerce/presentation/carts/cartvm.dart';
-// import 'package:e_commerce/presentation/items/itemlistvm.dart';
+import 'package:e_commerce/presentation/items/item_detail_view.dart';
 
 /// Defines constants for all named routes in the application.
 class AppRoutes {
@@ -43,6 +19,7 @@ class AppRoutes {
   static const String homeRoute = '/home';
   static const String profileRoute = '/profile';
   static const String itemListRoute = '/items';
+  static const String itemDetailRoute = '/item-detail'; // New route
   static const String cartRoute = '/cart';
   static const String ordersRoute = '/orders';
 }
@@ -71,35 +48,66 @@ class AppRouter {
     // Handle other named routes (assuming user is authenticated to reach these)
     switch (settings.name) {
       case AppRoutes.homeRoute:
-        // Ensure only authenticated users can access home, otherwise redirect to auth
+      // Ensure only authenticated users can access home, otherwise redirect to auth
         if (user == null) {
           return MaterialPageRoute(builder: (context) => const AuthScreen());
-        }
-        else{
+        } else {
           return MaterialPageRoute(builder: (context) => const HomeScreen());
         }
 
       case AppRoutes.profileRoute:
-        if (user == null)
+        if (user == null) {
           return MaterialPageRoute(builder: (context) => const AuthScreen());
+        }
         return MaterialPageRoute(builder: (context) => const ProfilePage());
+
       case AppRoutes.itemListRoute:
-        if (user == null)
+        if (user == null) {
           return MaterialPageRoute(builder: (context) => const AuthScreen());
+        }
         return MaterialPageRoute(builder: (context) => const ItemListPage());
+
+      case AppRoutes.itemDetailRoute:
+        if (user == null) {
+          return MaterialPageRoute(builder: (context) => const AuthScreen());
+        }
+        final itemId = settings.arguments as String?;
+        if (itemId == null) {
+          return MaterialPageRoute(
+            builder: (context) => const Scaffold(
+              body: Center(child: Text('Error: Item ID is missing')),
+            ),
+          );
+        }
+        // Create a page-specific provider for the ItemDetailViewModel
+        return MaterialPageRoute(
+          builder: (context) => ChangeNotifierProvider(
+            create: (context) => ItemDetailViewModel(
+              Provider.of<ItemRepo>(context, listen: false),
+              Provider.of<AddItemToCartUseCase>(context, listen: false),
+            ),
+            child: ItemDetailPage(itemId: itemId),
+          ),
+        );
+
       case AppRoutes.cartRoute:
-        if (user == null)
+        if (user == null) {
           return MaterialPageRoute(builder: (context) => const AuthScreen());
+        }
         return MaterialPageRoute(builder: (context) => const CartPage());
+
       case AppRoutes.ordersRoute:
-        if (user == null)
+        if (user == null) {
           return MaterialPageRoute(builder: (context) => const AuthScreen());
+        }
         return MaterialPageRoute(builder: (context) => const OrderListPage());
 
       default:
-        // Fallback for unknown routes
+      // Fallback for unknown routes
         return MaterialPageRoute(
-          builder: (context) => const Text('Error: Unknown Route'),
+          builder: (context) => const Scaffold(
+            body: Center(child: Text('Error: Unknown Route')),
+          ),
         );
     }
   }
