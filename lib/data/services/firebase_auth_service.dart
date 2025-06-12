@@ -43,7 +43,6 @@ class FirebaseAuthService {
         final newUser = User.fromFirebaseAuthUser(firebaseUser).copyWith(
           username: username, // Ensure username is set from input
           email: email, // Ensure email is set from input
-          roles: ['buyer'], // Explicitly set buyer role on signup
         );
         await _userRepository.addUser(
           newUser,

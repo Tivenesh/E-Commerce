@@ -1,51 +1,54 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'
-    as firebase_auth; // Alias Firebase Auth's User to avoid conflict
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 
-/// Represents a User in the e-commerce application.
-/// Its `id` property should match the Firebase Authentication UID.
+/// Represents a user in the application.
+///
+/// This model is designed to support multiple roles, allowing a single user account
+/// to function as both a buyer and a seller, similar to platforms like Carousell.
 class User {
   final String id; // This will be the Firebase Auth UID
-  final String? fullName;
-  final String username;
   final String email;
-  final Timestamp? dateOfBirth;
+  final String username;
+  final List<String> roles; // e.g., ['buyer', 'seller']
+
+  // Standard user profile fields (can be null)
+  final String? fullName;
   final String? profileImageUrl;
   final String? address;
   final String? phoneNumber;
+  final String? gender;
+  final Timestamp? dateOfBirth;
   final Timestamp createdAt;
   final Timestamp updatedAt;
-  final String? gender;
-  // New fields specific to sellers (can be null for buyers)
+
+  // Fields specific to sellers (nullable)
   final String? businessName;
   final String? businessAddress;
   final String? businessContactEmail;
   final String? businessPhoneNumber;
   final String? businessDescription;
-  final List<String> roles; // 'buyer', 'seller'
 
   User({
     required this.id,
     required this.email,
     required this.username,
-    // roleName is now required in the constructor, with a default 'buyer'
-    // in factories where it might not be explicitly set.
-    this.roles = const ['buyer'], // Default role
-    this.profileImageUrl,
-    this.address,
-    this.phoneNumber,
+    required this.roles,
     required this.createdAt,
     required this.updatedAt,
     this.fullName,
+    this.profileImageUrl,
+    this.address,
+    this.phoneNumber,
     this.gender,
     this.dateOfBirth,
-    // Seller specific fields
     this.businessName,
     this.businessAddress,
     this.businessContactEmail,
     this.businessPhoneNumber,
     this.businessDescription,
   });
+
+  /// A computed property to easily check if the user has a 'seller' role.
   bool get isSeller => roles.contains('seller');
 
   /// Converts a User object to a JSON map for Firestore.
@@ -54,7 +57,7 @@ class User {
       'id': id,
       'email': email,
       'username': username,
-      'roles': roles, // Store only roleName
+      'roles': roles, // Storing the list of roles
       'profileImageUrl': profileImageUrl,
       'address': address,
       'phoneNumber': phoneNumber,
@@ -63,7 +66,7 @@ class User {
       'fullName': fullName,
       'gender': gender,
       'dateOfBirth': dateOfBirth,
-      // Include seller-specific fields in JSON
+      // Seller-specific fields
       'businessName': businessName,
       'businessAddress': businessAddress,
       'businessContactEmail': businessContactEmail,
@@ -79,7 +82,8 @@ class User {
       id: doc.id,
       email: data['email'] ?? '',
       username: data['username'] ?? '',
-      // Provide a default 'buyer' if roleName is missing in Firestore
+      // Ensure 'roles' is read as a list, defaulting to ['buyer'] if absent
+      roles: List<String>.from(data['roles'] ?? ['buyer']),
       profileImageUrl: data['profileImageUrl'],
       address: data['address'],
       phoneNumber: data['phoneNumber'],
@@ -88,9 +92,7 @@ class User {
       fullName: data['fullName'],
       gender: data['gender'],
       dateOfBirth: data['dateOfBirth'],
-      roles: List<String>.from(data['roles'] ?? ['buyer']),
-
-      // Assign seller-specific fields from Firestore
+      // Assign seller-specific fields
       businessName: data['businessName'],
       businessAddress: data['businessAddress'],
       businessContactEmail: data['businessContactEmail'],
@@ -100,63 +102,53 @@ class User {
   }
 
   /// Creates a minimal User object from a Firebase Auth User object.
-  /// This is useful when a user first signs up/logs in, before their
-  /// full profile is saved to Firestore.
+  /// This is used when a user first signs up. They always start as a 'buyer'.
   factory User.fromFirebaseAuthUser(firebase_auth.User firebaseUser) {
     return User(
       id: firebaseUser.uid,
       email: firebaseUser.email ?? 'no-email@example.com',
       username: firebaseUser.displayName ?? 'New User',
-      fullName: firebaseUser.displayName,
-      profileImageUrl: firebaseUser.photoURL,
+      roles: ['buyer'], // All new users start as buyers
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
-      gender: null,
-      dateOfBirth: null,
-      roles: ['buyer'], // Default role on creation
-      // Seller specific fields are null by default for new Firebase Auth users
-      businessName: null,
-      businessAddress: null,
-      businessContactEmail: null,
-      businessPhoneNumber: null,
-      businessDescription: null,
+      fullName: firebaseUser.displayName,
+      profileImageUrl: firebaseUser.photoURL,
     );
   }
 
-  // Add copyWith for immutable updates
+  /// Creates a copy of the User object with updated fields.
   User copyWith({
     String? id,
     String? email,
     String? username,
-    String? roleName, // Include roleName in copyWith
+    List<String>? roles,
+    String? fullName,
     String? profileImageUrl,
     String? address,
     String? phoneNumber,
-    Timestamp? createdAt,
-    Timestamp? updatedAt,
-    String? fullName,
     String? gender,
     Timestamp? dateOfBirth,
+    Timestamp? createdAt,
+    Timestamp? updatedAt,
     String? businessName,
     String? businessAddress,
     String? businessContactEmail,
     String? businessPhoneNumber,
     String? businessDescription,
-    List<String>? roles,
   }) {
     return User(
       id: id ?? this.id,
       email: email ?? this.email,
       username: username ?? this.username,
+      roles: roles ?? this.roles,
+      fullName: fullName ?? this.fullName,
       profileImageUrl: profileImageUrl ?? this.profileImageUrl,
       address: address ?? this.address,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      gender: gender ?? this.gender,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      fullName: fullName ?? this.fullName,
-      gender: gender ?? this.gender,
-      roles: roles ?? this.roles,
-      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       businessName: businessName ?? this.businessName,
       businessAddress: businessAddress ?? this.businessAddress,
       businessContactEmail: businessContactEmail ?? this.businessContactEmail,
@@ -165,6 +157,17 @@ class User {
     );
   }
 
+  // // --- Equality and Hashing ---
+  // @override
+  // bool operator ==(Object other) =>
+  //     identical(this, other) ||
+  //     other is User &&
+  //         runtimeType == other.runtimeType &&
+  //         id == other.id &&
+  //         email == other.email;
+
+  // @override
+  // int get hashCode => id.hashCode ^ email.hashCode;
   // --- Equality and Hashing ---
   @override
   bool operator ==(Object other) =>

@@ -1,209 +1,164 @@
+import 'package:e_commerce/data/models/user.dart';
+import 'package:e_commerce/presentation/users/profilevm.dart';
 import 'package:e_commerce/routing/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:e_commerce/presentation/users/profilevm.dart';
 
-/// The user profile page (View) for displaying and editing user information.
-class ProfilePage extends StatefulWidget {
+/// The user profile page (View) for displaying user information and actions.
+/// This is a read-only view. Editing is handled by `EditProfilePage`.
+class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
-
-  @override
-  State<ProfilePage> createState() => _ProfilePageState();
-}
-
-class _ProfilePageState extends State<ProfilePage> {
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
-  final TextEditingController _phoneNumberController = TextEditingController();
-  final TextEditingController _profileImageUrlController =
-      TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    super.didChangeDependencies();
-    // Initialize controllers with current profile data when available
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-      if (viewModel.currentUserProfile != null) {
-        _usernameController.text = viewModel.currentUserProfile!.username;
-        _addressController.text = viewModel.currentUserProfile!.address ?? '';
-        _phoneNumberController.text =
-            viewModel.currentUserProfile!.phoneNumber ?? '';
-        _profileImageUrlController.text =
-            viewModel.currentUserProfile!.profileImageUrl ?? '';
-      }
-      // Listen to changes in the profile data
-      viewModel.addListener(_updateControllers);
-    });
-  }
-
-  void _updateControllers() {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    if (viewModel.currentUserProfile != null) {
-      // Only update if the content has actually changed to avoid cursor jumps
-      if (_usernameController.text != viewModel.currentUserProfile!.username) {
-        _usernameController.text = viewModel.currentUserProfile!.username;
-      }
-      if (_addressController.text !=
-          (viewModel.currentUserProfile!.address ?? '')) {
-        _addressController.text = viewModel.currentUserProfile!.address ?? '';
-      }
-      if (_phoneNumberController.text !=
-          (viewModel.currentUserProfile!.phoneNumber ?? '')) {
-        _phoneNumberController.text =
-            viewModel.currentUserProfile!.phoneNumber ?? '';
-      }
-      if (_profileImageUrlController.text !=
-          (viewModel.currentUserProfile!.profileImageUrl ?? '')) {
-        _profileImageUrlController.text =
-            viewModel.currentUserProfile!.profileImageUrl ?? '';
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    viewModel.removeListener(_updateControllers);
-    _usernameController.dispose();
-    _addressController.dispose();
-    _phoneNumberController.dispose();
-    _profileImageUrlController.dispose();
-    super.dispose();
-  }
-
-  void _saveProfile() {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    viewModel.updateProfile(
-      username: _usernameController.text.trim(),
-      address: _addressController.text.trim(),
-      phoneNumber: _phoneNumberController.text.trim(),
-      profileImageUrl: _profileImageUrlController.text.trim(),
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          viewModel.errorMessage ?? 'Profile updated successfully!',
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Profile')),
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        actions: [
+          IconButton(
+            tooltip: 'Sign Out',
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              // No need for async/await here, the auth stream will handle navigation
+              Provider.of<ProfileViewModel>(context, listen: false).signOut();
+            },
+          ),
+        ],
+      ),
       body: Consumer<ProfileViewModel>(
         builder: (context, viewModel, child) {
           if (viewModel.isLoading) {
             return const Center(child: CircularProgressIndicator());
           }
-          if (viewModel.errorMessage != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  viewModel.errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red, fontSize: 16),
-                ),
-              ),
-            );
-          }
-          final user = viewModel.currentUserProfile;
-          if (user == null) {
-            return const Center(child: Text('User profile not available.'));
+
+          if (viewModel.errorMessage != null && viewModel.currentUser == null) {
+            return Center(child: Text(viewModel.errorMessage!));
           }
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundImage:
-                        user.profileImageUrl != null &&
-                                user.profileImageUrl!.isNotEmpty
-                            ? NetworkImage(user.profileImageUrl!)
-                            : null,
-                    child:
-                        (user.profileImageUrl == null ||
-                                user.profileImageUrl!.isEmpty)
-                            ? const Icon(
-                              Icons.person,
-                              size: 60,
-                              color: Colors.blueGrey,
-                            )
-                            : null,
-                    backgroundColor: Colors.blueGrey[50],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _buildTextField(_usernameController, 'Username', Icons.person),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _addressController,
-                  'Address',
-                  Icons.location_on,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _phoneNumberController,
-                  'Phone Number',
-                  Icons.phone,
-                  TextInputType.phone,
-                ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _profileImageUrlController,
-                  'Profile Image URL',
-                  Icons.image,
-                  TextInputType.url,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: viewModel.isLoading ? null : _saveProfile,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blueGrey[700],
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child:
-                      viewModel.isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                            'Save Profile',
-                            style: TextStyle(fontSize: 18),
-                          ),
-                ),
-              ],
-            ),
-          );
+          final user = viewModel.currentUser;
+          if (user == null) {
+            return const Center(
+              child: Text('Could not load profile. Please try again.'),
+            );
+          }
+
+          return _buildProfileContent(context, user);
         },
       ),
     );
   }
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon, [
-    TextInputType keyboardType = TextInputType.text,
-  ]) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        prefixIcon: Icon(icon),
+  Widget _buildProfileContent(BuildContext context, User user) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        // You could add a manual refresh method to the ViewModel if needed
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          _buildProfileHeader(context, user),
+          const SizedBox(height: 24),
+          const Divider(),
+          // Conditionally render the 'Become a Seller' button
+          if (!user.isSeller) ...[
+            _buildSellerRegistrationCard(context, user),
+            const Divider(),
+          ],
+          // Conditionally render the 'Seller Dashboard' button
+          if (user.isSeller) ...[
+            ListTile(
+              leading: const Icon(Icons.storefront_outlined),
+              title: const Text('Seller Dashboard'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).pushNamed(AppRoutes.sellerDashboardRoute);
+              },
+            ),
+            const Divider(),
+          ],
+          ListTile(
+            leading: const Icon(Icons.shopping_bag_outlined),
+            title: const Text('My Orders'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).pushNamed(AppRoutes.orderListRoute);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit Profile'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              // Navigate to the new Edit Profile page
+              // We pass the user to pre-fill the form
+              Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.editProfileRoute, arguments: user);
+            },
+          ),
+          const SizedBox(height: 10),
+        ],
       ),
-      keyboardType: keyboardType,
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, User user) {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 50,
+          backgroundImage:
+              user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
+                  ? NetworkImage(user.profileImageUrl!)
+                  : null,
+          child:
+              (user.profileImageUrl == null || user.profileImageUrl!.isEmpty)
+                  ? const Icon(Icons.person, size: 50)
+                  : null,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          user.fullName ?? user.username,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 4),
+        Text(user.email, style: Theme.of(context).textTheme.bodyMedium),
+      ],
+    );
+  }
+
+  Widget _buildSellerRegistrationCard(BuildContext context, User user) {
+    return Card(
+      elevation: 2.0,
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Start Selling Today!",
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Turn your items into cash. Join our community of sellers.",
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.sellerRegistrationRoute,
+                    arguments: user, // Pass the current user object
+                  );
+                },
+                child: const Text('Become a Seller'),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,12 +1,17 @@
 import 'package:e_commerce/data/models/user.dart';
 import 'package:e_commerce/data/usecases/user/upgrade_to_seller_usecase.dart';
-import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
-import 'package:e_commerce/data/services/user_repo.dart';
+import 'package:flutter/material.dart';
+import 'package:e_commerce/utils/logger.dart';
 
-class SellerRegistrationViewModel extends ChangeNotifier {
+class SellerRegistrationViewModel with ChangeNotifier {
   final UpgradeToSellerUseCase _upgradeToSellerUseCase;
-  final UserRepo _userRepository;
+  final User _currentUser;
+
+  SellerRegistrationViewModel({
+    required UpgradeToSellerUseCase upgradeToSellerUseCase,
+    required User currentUser,
+  }) : _upgradeToSellerUseCase = upgradeToSellerUseCase,
+       _currentUser = currentUser;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -17,33 +22,14 @@ class SellerRegistrationViewModel extends ChangeNotifier {
   bool _isRegistrationSuccessful = false;
   bool get isRegistrationSuccessful => _isRegistrationSuccessful;
 
-  User? _currentUser;
-
-  SellerRegistrationViewModel(
-    this._upgradeToSellerUseCase,
-    this._userRepository,
-  ) {
-    _loadCurrentUser();
-  }
-
-  Future<void> _loadCurrentUser() async {
-    final userId = firebase_auth.FirebaseAuth.instance.currentUser?.uid;
-    if (userId != null) {
-      _currentUser = await _userRepository.getUserById(userId);
-    }
-  }
-
-  Future<void> registerAsSeller(
-    String businessName,
-    String businessAddress,
-  ) async {
-    await _loadCurrentUser(); // Ensure we have the latest user data
-    if (_currentUser == null) {
-      _errorMessage = 'User not found. Please relogin.';
-      notifyListeners();
-      return;
-    }
-
+  /// Attempts to register the user as a seller with the provided details.
+  Future<void> registerAsSeller({
+    required String businessName,
+    required String businessAddress,
+    String? businessContactEmail,
+    String? businessPhoneNumber,
+    String? businessDescription,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     _isRegistrationSuccessful = false;
@@ -51,13 +37,18 @@ class SellerRegistrationViewModel extends ChangeNotifier {
 
     try {
       await _upgradeToSellerUseCase(
-        _currentUser!,
-        businessName,
-        businessAddress,
+        _currentUser,
+        businessName: businessName,
+        businessAddress: businessAddress,
+        businessContactEmail: businessContactEmail,
+        businessPhoneNumber: businessPhoneNumber,
+        businessDescription: businessDescription,
       );
       _isRegistrationSuccessful = true;
+      appLogger.i('Seller registration successful for user ${_currentUser.id}');
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = 'Registration failed: ${e.toString()}';
+      appLogger.e('Seller registration error: $e', error: e);
     } finally {
       _isLoading = false;
       notifyListeners();

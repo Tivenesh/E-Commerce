@@ -1,141 +1,164 @@
 import 'package:e_commerce/data/models/user.dart';
-import 'package:e_commerce/data/services/user_repo.dart';
-import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart'
-    as firebase_auth; // For current user ID
-import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
-import 'package:e_commerce/utils/logger.dart';
-import 'dart:async';
+import 'package:e_commerce/presentation/users/profilevm.dart';
+import 'package:e_commerce/routing/routes.dart';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-/// ViewModel for the user profile screen.
-class ProfileViewModel extends ChangeNotifier {
-  final UserRepo _userRepository;
-  StreamSubscription? _userSubscription;
-
-  User? _currentUserProfile;
-  User? get currentUserProfile => _currentUserProfile;
-
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
-
-  String? _errorMessage;
-  String? get errorMessage => _errorMessage;
-
-  ProfileViewModel(this._userRepository) {
-    _fetchUserProfile();
-  }
-
-  /// Fetches the current authenticated user's profile from Firestore.
-  Future<void> _fetchUserProfile() async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final String? uid = firebase_auth.FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) {
-        _errorMessage = 'No authenticated user found.';
-        _isLoading = false;
-        notifyListeners();
-        appLogger.w(
-          'ProfileViewModel: No authenticated user to fetch profile for.',
-        );
-        return;
-      }
-
-      // Listen to real-time updates for the user's profile
-      _userRepository.getUsers().listen(
-        (users) {
-          final user = users.firstWhere(
-            (u) => u.id == uid,
-            orElse:
-                () => User(
-                  id: uid,
-                  email:
-                      firebase_auth.FirebaseAuth.instance.currentUser?.email ??
-                      'N/A',
-                  username:
-                      firebase_auth
-                          .FirebaseAuth
-                          .instance
-                          .currentUser
-                          ?.displayName ??
-                      'New User',
-                  createdAt: firestore.Timestamp.now(),
-                  updatedAt: firestore.Timestamp.now(),
-                ),
-          );
-          _currentUserProfile = user;
-          _isLoading = false;
-          _errorMessage = null;
-          notifyListeners();
-          appLogger.d('ProfileViewModel: User profile updated for $uid.');
-        },
-        onError: (error) {
-          _isLoading = false;
-          _errorMessage = 'Failed to load profile: ${error.toString()}';
-          notifyListeners();
-          appLogger.e(
-            'ProfileViewModel: Error fetching user profile stream: $error',
-            error: error,
-          );
-        },
-      );
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = 'An unexpected error occurred: ${e.toString()}';
-      notifyListeners();
-      appLogger.e(
-        'ProfileViewModel: Unexpected error in _fetchUserProfile: $e',
-        error: e,
-      );
-    }
-  }
-
-  /// Updates the user's profile in Firestore.
-  Future<void> updateProfile({
-    String? username,
-    String? address,
-    String? phoneNumber,
-    String? profileImageUrl,
-  }) async {
-    if (_currentUserProfile == null) {
-      _errorMessage = 'No user profile to update.';
-      notifyListeners();
-      return;
-    }
-
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      final updatedProfile = _currentUserProfile!.copyWith(
-        username: username,
-        address: address,
-        phoneNumber: phoneNumber,
-        profileImageUrl: profileImageUrl,
-        updatedAt: firestore.Timestamp.now(),
-      );
-      await _userRepository.updateUser(updatedProfile);
-      _isLoading = false;
-      _errorMessage = null;
-      notifyListeners(); // Will also be triggered by stream listener in _fetchUserProfile
-      appLogger.i('ProfileViewModel: User profile updated successfully.');
-    } catch (e) {
-      _isLoading = false;
-      _errorMessage = 'Failed to update profile: ${e.toString()}';
-      notifyListeners();
-      appLogger.e(
-        'ProfileViewModel: Error updating user profile: $e',
-        error: e,
-      );
-    }
-  }
+/// The user profile page (View) for displaying user information and actions.
+/// This is a read-only view. Editing is handled by `EditProfilePage`.
+class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
 
   @override
-  void dispose() {
-    _userSubscription?.cancel();
-    super.dispose();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Profile'),
+        actions: [
+          IconButton(
+            tooltip: 'Sign Out',
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              // No need for async/await here, the auth stream will handle navigation
+              Provider.of<ProfileViewModel>(context, listen: false).signOut();
+            },
+          ),
+        ],
+      ),
+      body: Consumer<ProfileViewModel>(
+        builder: (context, viewModel, child) {
+          if (viewModel.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (viewModel.errorMessage != null && viewModel.currentUser == null) {
+            return Center(child: Text(viewModel.errorMessage!));
+          }
+
+          final user = viewModel.currentUser;
+          if (user == null) {
+            return const Center(
+              child: Text('Could not load profile. Please try again.'),
+            );
+          }
+
+          return _buildProfileContent(context, user);
+        },
+      ),
+    );
+  }
+
+  Widget _buildProfileContent(BuildContext context, User user) {
+    return RefreshIndicator(
+      onRefresh: () async {
+        // You could add a manual refresh method to the ViewModel if needed
+      },
+      child: ListView(
+        padding: const EdgeInsets.all(16.0),
+        children: [
+          _buildProfileHeader(context, user),
+          const SizedBox(height: 24),
+          const Divider(),
+          // Conditionally render the 'Become a Seller' button
+          if (!user.isSeller) ...[
+            _buildSellerRegistrationCard(context, user),
+            const Divider(),
+          ],
+          // Conditionally render the 'Seller Dashboard' button
+          if (user.isSeller) ...[
+            ListTile(
+              leading: const Icon(Icons.storefront_outlined),
+              title: const Text('Seller Dashboard'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.of(context).pushNamed(AppRoutes.sellerDashboardRoute);
+              },
+            ),
+            const Divider(),
+          ],
+          ListTile(
+            leading: const Icon(Icons.shopping_bag_outlined),
+            title: const Text('My Orders'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).pushNamed(AppRoutes.orderListRoute);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit Profile'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              // Navigate to the new Edit Profile page
+              // We pass the user to pre-fill the form
+              Navigator.of(
+                context,
+              ).pushNamed(AppRoutes.editProfileRoute, arguments: user);
+            },
+          ),
+          const SizedBox(height: 10),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context, User user) {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 50,
+          backgroundImage:
+              user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
+                  ? NetworkImage(user.profileImageUrl!)
+                  : null,
+          child:
+              (user.profileImageUrl == null || user.profileImageUrl!.isEmpty)
+                  ? const Icon(Icons.person, size: 50)
+                  : null,
+        ),
+        const SizedBox(height: 16),
+        Text(
+          user.fullName ?? user.username,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 4),
+        Text(user.email, style: Theme.of(context).textTheme.bodyMedium),
+      ],
+    );
+  }
+
+  Widget _buildSellerRegistrationCard(BuildContext context, User user) {
+    return Card(
+      elevation: 2.0,
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              "Start Selling Today!",
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              "Turn your items into cash. Join our community of sellers.",
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushNamed(
+                    AppRoutes.sellerRegistrationRoute,
+                    arguments: user, // Pass the current user object
+                  );
+                },
+                child: const Text('Become a Seller'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
