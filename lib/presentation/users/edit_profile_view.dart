@@ -1,5 +1,6 @@
 import 'package:e_commerce/data/models/user.dart';
-import 'package:e_commerce/presentation/users/profilevm.dart';
+import 'package:e_commerce/data/services/user_repo.dart';
+import 'package:e_commerce/presentation/users/profilevm.dart'; // Correct import
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -22,19 +23,24 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   void initState() {
     super.initState();
-    // Get the user passed as an argument
-    final user = ModalRoute.of(context)!.settings.arguments as User;
+    // Use addPostFrameCallback to access arguments safely after the first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Get the user passed as an argument
+      final user = ModalRoute.of(context)!.settings.arguments as User;
 
-    // Initialize controllers with current profile data
-    _usernameController = TextEditingController(text: user.username);
-    _fullNameController = TextEditingController(text: user.fullName ?? '');
-    _addressController = TextEditingController(text: user.address ?? '');
-    _phoneNumberController = TextEditingController(
-      text: user.phoneNumber ?? '',
-    );
-    _profileImageUrlController = TextEditingController(
-      text: user.profileImageUrl ?? '',
-    );
+      // Initialize controllers with current profile data
+      _usernameController = TextEditingController(text: user.username);
+      _fullNameController = TextEditingController(text: user.fullName ?? '');
+      _addressController = TextEditingController(text: user.address ?? '');
+      _phoneNumberController = TextEditingController(
+        text: user.phoneNumber ?? '',
+      );
+      _profileImageUrlController = TextEditingController(
+        text: user.profileImageUrl ?? '',
+      );
+      // We call setState to ensure the UI rebuilds with the initialized controllers
+      setState(() {});
+    });
   }
 
   @override
@@ -49,6 +55,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   void _saveProfile() {
     if (_formKey.currentState!.validate()) {
+      // The error was here. Now it's fixed because ProfileViewModel is a real class.
       final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
       viewModel
           .updateProfile(
@@ -79,8 +86,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    // We only need the view model for the save action, so we listen: false
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
+    // We get the view model to check the loading state for the button.
+    final viewModel = Provider.of<UserRepo>(context);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Profile')),
@@ -122,7 +129,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         ? const SizedBox(
                           height: 24,
                           width: 24,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                         : const Text('Save Changes'),
               ),

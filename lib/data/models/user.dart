@@ -58,14 +58,14 @@ class User {
       'email': email,
       'username': username,
       'roles': roles, // Storing the list of roles
+      'fullName': fullName,
       'profileImageUrl': profileImageUrl,
       'address': address,
       'phoneNumber': phoneNumber,
-      'createdAt': createdAt,
-      'updatedAt': updatedAt,
-      'fullName': fullName,
       'gender': gender,
       'dateOfBirth': dateOfBirth,
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
       // Seller-specific fields
       'businessName': businessName,
       'businessAddress': businessAddress,
@@ -84,14 +84,14 @@ class User {
       username: data['username'] ?? '',
       // Ensure 'roles' is read as a list, defaulting to ['buyer'] if absent
       roles: List<String>.from(data['roles'] ?? ['buyer']),
+      fullName: data['fullName'],
       profileImageUrl: data['profileImageUrl'],
       address: data['address'],
       phoneNumber: data['phoneNumber'],
-      createdAt: data['createdAt'] ?? Timestamp.now(),
-      updatedAt: data['updatedAt'] ?? Timestamp.now(),
-      fullName: data['fullName'],
       gender: data['gender'],
       dateOfBirth: data['dateOfBirth'],
+      createdAt: data['createdAt'] ?? Timestamp.now(),
+      updatedAt: data['updatedAt'] ?? Timestamp.now(),
       // Assign seller-specific fields
       businessName: data['businessName'],
       businessAddress: data['businessAddress'],
@@ -130,6 +130,7 @@ class User {
     Timestamp? dateOfBirth,
     Timestamp? createdAt,
     Timestamp? updatedAt,
+    // Add seller fields to copyWith
     String? businessName,
     String? businessAddress,
     String? businessContactEmail,
@@ -149,6 +150,7 @@ class User {
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      // Pass seller fields
       businessName: businessName ?? this.businessName,
       businessAddress: businessAddress ?? this.businessAddress,
       businessContactEmail: businessContactEmail ?? this.businessContactEmail,
@@ -157,17 +159,6 @@ class User {
     );
   }
 
-  // // --- Equality and Hashing ---
-  // @override
-  // bool operator ==(Object other) =>
-  //     identical(this, other) ||
-  //     other is User &&
-  //         runtimeType == other.runtimeType &&
-  //         id == other.id &&
-  //         email == other.email;
-
-  // @override
-  // int get hashCode => id.hashCode ^ email.hashCode;
   // --- Equality and Hashing ---
   @override
   bool operator ==(Object other) =>

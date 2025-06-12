@@ -10,21 +10,31 @@ import 'package:e_commerce/data/usecases/auth/signup.dart';
 import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart';
 import 'package:e_commerce/data/usecases/items/get_all_item_usecase.dart';
 import 'package:e_commerce/data/usecases/orders/place_order_usecase.dart';
-import 'package:e_commerce/data/usecases/user/upgrade_to_seller_usecase.dart';
-import 'package:e_commerce/presentation/auth_gate.dart';
+import 'package:e_commerce/presentation/authscreen.dart';
 import 'package:e_commerce/presentation/carts/cartvm.dart';
-// import 'package:e_commerce/presentation/items/itemlistvm.dart';
+import 'package:e_commerce/presentation/items/itemlistvm.dart';
 import 'package:e_commerce/presentation/orders/orderlistvm.dart';
+import 'package:e_commerce/presentation/testhome.dart';
 import 'package:e_commerce/presentation/users/profilevm.dart';
 import 'package:e_commerce/routing/routes.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:provider/provider.dart';
+import 'package:firebase_auth/firebase_auth.dart'
+    as firebase_auth; // Alias for Firebase Auth's User
+import 'package:provider/provider.dart'; // For Provider, Consumer, Selector
+
+// Firebase options
 import 'firebase_options.dart';
+
+// Models
+
+// Utils
+import 'package:e_commerce/utils/logger.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const MyApp());
 }
 
@@ -33,82 +43,93 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize all your concrete services (Data Layer implementations)
+    // These are often instantiated once and provided throughout the app.
+    final UserRepo firebaseUserService = UserRepo();
+    final ItemRepo firebaseItemService = ItemRepo();
+    final CartRepo firebaseCartService = CartRepo();
+    final OrderItemRepo firebaseOrderService = OrderItemRepo();
+    final PaymentRepo firebasePaymentService =
+        PaymentRepo(); // Unused for now, but available
+
+    // Initialize your FirebaseAuthService, injecting its dependencies
+    final FirebaseAuthService firebaseAuthService = FirebaseAuthService(
+      firebaseUserService,
+    );
+
+    // Initialize all Use Cases, injecting their dependencies (repositories/other services)
+    final SignUpUseCase signUpUseCase = SignUpUseCase(firebaseAuthService);
+    final SignInUseCase signInUseCase = SignInUseCase(firebaseAuthService);
+    final SignOutUseCase signOutUseCase = SignOutUseCase(firebaseAuthService);
+    final AddItemToCartUseCase addItemToCartUseCase = AddItemToCartUseCase(
+      firebaseCartService,
+      firebaseItemService,
+    );
+    final PlaceOrderUseCase placeOrderUseCase = PlaceOrderUseCase(
+      firebaseCartService,
+      firebaseOrderService,
+      firebaseItemService,
+      firebaseUserService,
+    );
+    final GetAllItemsUseCase getAllProductsUseCase = GetAllItemsUseCase(
+      firebaseItemService,
+    ); // Used by ItemListViewModel
+
     return MultiProvider(
       providers: [
-        // --- DATA LAYER: REPOSITORIES & SERVICES ---
-        Provider<UserRepo>(create: (_) => UserRepo()),
-        Provider<ItemRepo>(create: (_) => ItemRepo()),
-        Provider<CartRepo>(create: (_) => CartRepo()),
-        Provider<OrderItemRepo>(create: (_) => OrderItemRepo()),
-        Provider<PaymentRepo>(create: (_) => PaymentRepo()),
-        Provider<FirebaseAuthService>(
-          create: (context) => FirebaseAuthService(context.read<UserRepo>()),
-        ),
+        // Provide concrete Repository implementations (as their abstract types)
+        // This is crucial for dependency injection into ViewModels.
+        Provider<UserRepo>(create: (_) => firebaseUserService),
+        Provider<ItemRepo>(create: (_) => firebaseItemService),
+        Provider<CartRepo>(create: (_) => firebaseCartService),
+        Provider<OrderItemRepo>(create: (_) => firebaseOrderService),
+        Provider<PaymentRepo>(create: (_) => firebasePaymentService),
 
-        // --- DOMAIN LAYER: USE CASES ---
-        Provider<SignUpUseCase>(
+        // Provide Services (like FirebaseAuthService)
+        Provider<FirebaseAuthService>(create: (_) => firebaseAuthService),
+
+        // Provide Use Cases
+        Provider<SignUpUseCase>(create: (_) => signUpUseCase),
+        Provider<SignInUseCase>(create: (_) => signInUseCase),
+        Provider<SignOutUseCase>(create: (_) => signOutUseCase),
+        Provider<AddItemToCartUseCase>(create: (_) => addItemToCartUseCase),
+        Provider<PlaceOrderUseCase>(create: (_) => placeOrderUseCase),
+        Provider<GetAllItemsUseCase>(create: (_) => getAllProductsUseCase),
+        ChangeNotifierProvider(
           create:
-              (context) => SignUpUseCase(context.read<FirebaseAuthService>()),
-        ),
-        Provider<SignInUseCase>(
-          create:
-              (context) => SignInUseCase(context.read<FirebaseAuthService>()),
-        ),
-        Provider<SignOutUseCase>(
-          create:
-              (context) => SignOutUseCase(context.read<FirebaseAuthService>()),
-        ),
-        Provider<GetAllItemsUseCase>(
-          create: (context) => GetAllItemsUseCase(context.read<ItemRepo>()),
-        ),
-        Provider<AddItemToCartUseCase>(
-          create:
-              (context) => AddItemToCartUseCase(
-                context.read<CartRepo>(),
-                context.read<ItemRepo>(),
+              (context) => ProfileViewModel(
+                Provider.of<UserRepo>(context, listen: false),
               ),
         ),
-        Provider<PlaceOrderUseCase>(
+        ChangeNotifierProvider(
           create:
-              (context) => PlaceOrderUseCase(
-                context.read<CartRepo>(),
-                context.read<OrderItemRepo>(),
-                context.read<ItemRepo>(),
-                context.read<UserRepo>(),
+              (context) => ItemListViewModel(
+                Provider.of<ItemRepo>(context, listen: false),
+                Provider.of<AddItemToCartUseCase>(context, listen: false),
               ),
         ),
-        // ** NEW: Provide the UpgradeToSellerUseCase **
-        Provider<UpgradeToSellerUseCase>(
-          create: (context) => UpgradeToSellerUseCase(context.read<UserRepo>()),
-        ),
-
-        // // --- PRESENTATION LAYER: VIEW MODELS ---
-        // ChangeNotifierProvider<ProfilePage>(
-        //   create:
-        //       (context) => ProfileViewModel(
-        //         userRepository: context.read<UserRepo>(),
-        //         signOutUseCase: context.read<SignOutUseCase>(),
-        //       ),
-        // ),
-        // ChangeNotifierProvider<ItemListViewModel>(
-        //   create:
-        //       (context) => ItemListViewModel(
-        //         context.read<ItemRepo>(),
-        //         context.read<AddItemToCartUseCase>(),
-        //       ),
-        // ),
-        ChangeNotifierProvider<CartViewModel>(
+        ChangeNotifierProvider(
           create:
               (context) => CartViewModel(
-                context.read<CartRepo>(),
-                context.read<ItemRepo>(),
-                context.read<PlaceOrderUseCase>(),
+                Provider.of<CartRepo>(context, listen: false),
+                Provider.of<ItemRepo>(
+                  context,
+                  listen: false,
+                ), // Dependency needed for CartViewModel
+                Provider.of<PlaceOrderUseCase>(
+                  context,
+                  listen: false,
+                ), // Dependency needed for CartViewModel
               ),
         ),
-        ChangeNotifierProvider<OrderListViewModel>(
+        ChangeNotifierProvider(
           create:
-              (context) => OrderListViewModel(context.read<OrderItemRepo>()),
+              (context) => OrderListViewModel(
+                Provider.of<OrderItemRepo>(context, listen: false),
+              ),
         ),
+        // Add more providers here if you have other global services or view models that aren't tied to a specific route.
+        // Page-specific ViewModels will be provided in onGenerateRoute as shown in app_router.dart
       ],
       child: MaterialApp(
         title: 'E-commerce App',
@@ -120,9 +141,9 @@ class MyApp extends StatelessWidget {
             foregroundColor: Colors.white,
           ),
         ),
-        // Use an AuthGate to handle the initial screen logic
-        home: const AuthGate(),
-        onGenerateRoute: AppRoutes.onGenerateRoute,
+        // Use onGenerateRoute for centralized routing
+        onGenerateRoute: AppRouter.onGenerateRoute,
+        initialRoute: AppRoutes.authRoute, // Start at the authentication screen
       ),
     );
   }

@@ -42,10 +42,15 @@ class UserRepo {
     }
   }
 
-  /// Provides a real-time stream of all user documents.
-  Stream<List<User>> getUsers() {
-    return _firestore.collection(_collectionName).snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => User.fromFirestore(doc)).toList();
+  /// Provides a real-time stream for a single user document.
+  Stream<User?> getUserStream(String userId) {
+    return _firestore.collection(_collectionName).doc(userId).snapshots().map((
+      snapshot,
+    ) {
+      if (snapshot.exists) {
+        return User.fromFirestore(snapshot);
+      }
+      return null;
     });
   }
 

@@ -1,10 +1,9 @@
 import 'package:e_commerce/data/models/user.dart';
 import 'package:e_commerce/presentation/authscreen.dart';
 import 'package:e_commerce/presentation/carts/cartview.dart';
+import 'package:e_commerce/presentation/users/items/item_detail_view.dart';
+import 'package:e_commerce/presentation/users/items/itemlistview.dart';
 import 'package:e_commerce/presentation/orders/orderlistview.dart';
-// import 'package:e_commerce/presentation/items/item_detail_view.dart';
-// import 'package:e_commerce/presentation/items/itemlistview.dart';
-// import 'package:e_commerce/presentation/orders/orderlistview.dart';
 import 'package:e_commerce/presentation/seller/seller_dashboard_view.dart';
 import 'package:e_commerce/presentation/seller/seller_registration_view.dart';
 import 'package:e_commerce/presentation/testhome.dart';
@@ -14,11 +13,11 @@ import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/material.dart';
 
 /// A utility class for handling named routes in the application.
-class AppRoutes {
+class AppRouter {
   static const String authRoute = '/';
   static const String homeRoute = '/home';
   static const String profileRoute = '/profile';
-  static const String editProfileRoute = '/edit-profile'; // New Route
+  static const String editProfileRoute = '/edit-profile';
   static const String itemListRoute = '/items';
   static const String itemDetailRoute = '/item-detail';
   static const String cartRoute = '/cart';
@@ -47,36 +46,39 @@ class AppRoutes {
           builder: (_) => authGuard(const ProfilePage()),
         );
 
-      case editProfileRoute: // New Route Handler
+      case editProfileRoute:
         final user = settings.arguments as User?;
         if (user != null) {
           return MaterialPageRoute(
-            builder: (_) => authGuard(const EditProfilePage()),
+            // Pass settings along so the view can extract arguments
             settings: settings,
+            builder: (_) => authGuard(const EditProfilePage()),
           );
         }
         return _errorRoute('User argument missing for edit profile route.');
 
+      // ** FIX: Point to ItemListPage **
       case itemListRoute:
         return MaterialPageRoute(
-          builder: (_) => authGuard(const EditProfilePage()),
+          builder: (_) => authGuard(const ItemListPage()),
         );
 
+      // ** FIX: Point to CartPage **
       case cartRoute:
-        return MaterialPageRoute(
-          builder: (_) => authGuard(const EditProfilePage()),
-        );
+        return MaterialPageRoute(builder: (_) => authGuard(const CartPage()));
 
       case orderListRoute:
         return MaterialPageRoute(
           builder: (_) => authGuard(const OrderListPage()),
         );
 
+      // ** FIX: Point to ItemDetailPage and correctly pass itemId **
       case itemDetailRoute:
         final itemId = settings.arguments as String?;
         if (itemId != null) {
           return MaterialPageRoute(
-            builder: (_) => authGuard(const EditProfilePage()),
+            settings: settings, // Pass settings for argument extraction
+            builder: (_) => authGuard(ItemDetailPage(itemId: itemId)),
           );
         }
         return _errorRoute('Item ID missing for item detail route.');
@@ -85,8 +87,9 @@ class AppRoutes {
         final user = settings.arguments as User?;
         if (user != null) {
           return MaterialPageRoute(
-            builder: (_) => authGuard(const SellerRegistrationView()),
+            // Pass settings along so the view can extract arguments
             settings: settings,
+            builder: (_) => authGuard(const SellerRegistrationView()),
           );
         }
         return _errorRoute('User argument missing for seller registration.');

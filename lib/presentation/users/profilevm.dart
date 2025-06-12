@@ -1,164 +1,129 @@
+import 'dart:async';
+// ** FIX: Import Cloud Firestore to use the Timestamp class **
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:e_commerce/data/models/user.dart';
-import 'package:e_commerce/presentation/users/profilevm.dart';
-import 'package:e_commerce/routing/routes.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:e_commerce/data/services/user_repo.dart';
+import 'package:e_commerce/data/usecases/auth/signout.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:flutter/foundation.dart';
+import 'package:e_commerce/utils/logger.dart';
 
-/// The user profile page (View) for displaying user information and actions.
-/// This is a read-only view. Editing is handled by `EditProfilePage`.
-class ProfilePage extends StatelessWidget {
-  const ProfilePage({super.key});
+/// ViewModel for the user's profile screen.
+/// Manages the current user's state, profile updates, and signing out.
+class ProfileViewModel extends ChangeNotifier {
+  final UserRepo _userRepository;
+  final SignOutUseCase _signOutUseCase;
+  final firebase_auth.FirebaseAuth _firebaseAuth =
+      firebase_auth.FirebaseAuth.instance;
+
+  StreamSubscription? _userSubscription;
+
+  User? _currentUser;
+  User? get currentUser => _currentUser;
+
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  String? _errorMessage;
+  String? get errorMessage => _errorMessage;
+
+  ProfileViewModel({
+    required UserRepo userRepository,
+    required SignOutUseCase signOutUseCase,
+  }) : _userRepository = userRepository,
+       _signOutUseCase = signOutUseCase {
+    _listenToAuthState();
+  }
+
+  void _listenToAuthState() {
+    _firebaseAuth.authStateChanges().listen((firebaseUser) {
+      if (firebaseUser != null) {
+        _listenToUserProfile(firebaseUser.uid);
+      } else {
+        _currentUser = null;
+        _userSubscription?.cancel();
+        notifyListeners();
+      }
+    });
+  }
+
+  void _listenToUserProfile(String uid) {
+    _isLoading = true;
+    notifyListeners();
+    _userSubscription = _userRepository
+        .getUserStream(uid)
+        .listen(
+          (user) {
+            _currentUser = user;
+            _isLoading = false;
+            _errorMessage = null;
+            notifyListeners();
+            appLogger.d(
+              'ProfileViewModel: User profile updated for ${user?.email}',
+            );
+          },
+          onError: (error) {
+            _isLoading = false;
+            _errorMessage = 'Failed to load profile: ${error.toString()}';
+            appLogger.e('ProfileViewModel: Error listening to profile: $error');
+            notifyListeners();
+          },
+        );
+  }
+
+  /// Updates the current user's profile information.
+  Future<void> updateProfile({
+    required String username,
+    required String fullName,
+    required String address,
+    required String phoneNumber,
+    required String profileImageUrl,
+  }) async {
+    if (_currentUser == null) return;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final updatedUser = _currentUser!.copyWith(
+        username: username,
+        fullName: fullName,
+        address: address,
+        phoneNumber: phoneNumber,
+        profileImageUrl: profileImageUrl,
+        // ** FIX: Use Timestamp.now() instead of DateTime.now() **
+        updatedAt: Timestamp.now(),
+      );
+      await _userRepository.updateUser(updatedUser);
+      appLogger.i('Profile updated successfully for user ${_currentUser!.id}');
+    } catch (e) {
+      _errorMessage = 'Failed to update profile: ${e.toString()}';
+      appLogger.e('Error updating profile: $e');
+      // Re-throw so the view can catch it
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// Signs out the current user.
+  Future<void> signOut() async {
+    try {
+      await _signOutUseCase();
+      _userSubscription?.cancel();
+      _currentUser = null;
+      appLogger.i('ProfileViewModel: User signed out.');
+    } catch (e) {
+      appLogger.e('Error signing out: $e');
+    }
+    // No need to notify listeners, the auth stream will handle UI changes
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My Profile'),
-        actions: [
-          IconButton(
-            tooltip: 'Sign Out',
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              // No need for async/await here, the auth stream will handle navigation
-              Provider.of<ProfileViewModel>(context, listen: false).signOut();
-            },
-          ),
-        ],
-      ),
-      body: Consumer<ProfileViewModel>(
-        builder: (context, viewModel, child) {
-          if (viewModel.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          if (viewModel.errorMessage != null && viewModel.currentUser == null) {
-            return Center(child: Text(viewModel.errorMessage!));
-          }
-
-          final user = viewModel.currentUser;
-          if (user == null) {
-            return const Center(
-              child: Text('Could not load profile. Please try again.'),
-            );
-          }
-
-          return _buildProfileContent(context, user);
-        },
-      ),
-    );
-  }
-
-  Widget _buildProfileContent(BuildContext context, User user) {
-    return RefreshIndicator(
-      onRefresh: () async {
-        // You could add a manual refresh method to the ViewModel if needed
-      },
-      child: ListView(
-        padding: const EdgeInsets.all(16.0),
-        children: [
-          _buildProfileHeader(context, user),
-          const SizedBox(height: 24),
-          const Divider(),
-          // Conditionally render the 'Become a Seller' button
-          if (!user.isSeller) ...[
-            _buildSellerRegistrationCard(context, user),
-            const Divider(),
-          ],
-          // Conditionally render the 'Seller Dashboard' button
-          if (user.isSeller) ...[
-            ListTile(
-              leading: const Icon(Icons.storefront_outlined),
-              title: const Text('Seller Dashboard'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {
-                Navigator.of(context).pushNamed(AppRoutes.sellerDashboardRoute);
-              },
-            ),
-            const Divider(),
-          ],
-          ListTile(
-            leading: const Icon(Icons.shopping_bag_outlined),
-            title: const Text('My Orders'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).pushNamed(AppRoutes.orderListRoute);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.edit_outlined),
-            title: const Text('Edit Profile'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // Navigate to the new Edit Profile page
-              // We pass the user to pre-fill the form
-              Navigator.of(
-                context,
-              ).pushNamed(AppRoutes.editProfileRoute, arguments: user);
-            },
-          ),
-          const SizedBox(height: 10),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileHeader(BuildContext context, User user) {
-    return Column(
-      children: [
-        CircleAvatar(
-          radius: 50,
-          backgroundImage:
-              user.profileImageUrl != null && user.profileImageUrl!.isNotEmpty
-                  ? NetworkImage(user.profileImageUrl!)
-                  : null,
-          child:
-              (user.profileImageUrl == null || user.profileImageUrl!.isEmpty)
-                  ? const Icon(Icons.person, size: 50)
-                  : null,
-        ),
-        const SizedBox(height: 16),
-        Text(
-          user.fullName ?? user.username,
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        const SizedBox(height: 4),
-        Text(user.email, style: Theme.of(context).textTheme.bodyMedium),
-      ],
-    );
-  }
-
-  Widget _buildSellerRegistrationCard(BuildContext context, User user) {
-    return Card(
-      elevation: 2.0,
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Start Selling Today!",
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Turn your items into cash. Join our community of sellers.",
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pushNamed(
-                    AppRoutes.sellerRegistrationRoute,
-                    arguments: user, // Pass the current user object
-                  );
-                },
-                child: const Text('Become a Seller'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void dispose() {
+    _userSubscription?.cancel();
+    super.dispose();
   }
 }

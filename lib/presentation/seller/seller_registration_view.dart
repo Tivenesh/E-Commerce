@@ -48,10 +48,10 @@ class SellerRegistrationView extends StatelessWidget {
                     const SizedBox(height: 24),
                     ElevatedButton(
                       onPressed: () {
-                        // Pop until we get back to the profile screen or home
+                        // Pop the registration screen to go back to the profile
                         Navigator.of(context).pop();
                       },
-                      child: const Text('Go to Dashboard'),
+                      child: const Text('Back to Profile'),
                     ),
                   ],
                 ),
