@@ -1,23 +1,30 @@
 // File: lib/presentation/sell/sell_items_list_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:e_commerce/presentation/sell/sellitemview.dart'; // Import SellItemVM
-import 'package:e_commerce/presentation/sell/sell_item_form_page.dart'; // Import the new form page
-import 'package:e_commerce/data/models/item.dart'; // Ensure Item model is imported
+import 'package:e_commerce/presentation/sell/sellitemview.dart';
+import 'package:e_commerce/presentation/sell/sell_item_form_page.dart';
+import 'package:e_commerce/data/models/item.dart';
 
 class SellItemsListPage extends StatelessWidget {
+  // Revert to StatelessWidget
   const SellItemsListPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-      create: (_) => SellItemVM(), // Provide the VM for this page
+      // Create the VM and immediately trigger fetchUserItems
+      create: (context) {
+        // Ensure context is passed here
+        final vm = SellItemVM();
+        vm.fetchUserItems(); // Call fetch when the VM is created
+        return vm;
+      },
       child: Consumer<SellItemVM>(
         builder: (context, vm, child) {
           return Scaffold(
             appBar: AppBar(title: const Text('Your Listings')),
             body: RefreshIndicator(
-              onRefresh: vm.fetchUserItems, // Allow pull-to-refresh
+              onRefresh: vm.fetchUserItems,
               child:
                   vm.isLoading
                       ? const Center(child: CircularProgressIndicator())
@@ -45,14 +52,12 @@ class SellItemsListPage extends StatelessWidget {
             ),
             floatingActionButton: FloatingActionButton(
               onPressed: () async {
-                // Navigate to the form page
                 final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (context) => const SellItemFormPage(),
                   ),
                 );
-                // If the form was submitted successfully, refresh the list
                 if (result == true) {
                   vm.fetchUserItems();
                 }
@@ -66,6 +71,7 @@ class SellItemsListPage extends StatelessWidget {
   }
 }
 
+// _SellerItemCard remains the same
 class _SellerItemCard extends StatelessWidget {
   final Item item;
   final SellItemVM vm;
@@ -153,7 +159,7 @@ class _SellerItemCard extends StatelessWidget {
                 ],
               ),
             ),
-            // Price and Delete Button
+            // Price and Action Buttons
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -166,64 +172,77 @@ class _SellerItemCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
-                IconButton(
-                  icon: const Icon(Icons.delete_forever, color: Colors.red),
-                  onPressed: () async {
-                    // Show a confirmation dialog before deleting
-                    final bool confirm = await showDialog(
-                      context: context,
-                      builder:
-                          (context) => AlertDialog(
-                            title: const Text('Delete Listing'),
-                            content: Text(
-                              'Are you sure you want to delete "${item.name}"?',
-                            ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context, false),
-                                child: const Text('Cancel'),
-                              ),
-                              ElevatedButton(
-                                onPressed: () => Navigator.pop(context, true),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.red,
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () async {
+                        final result = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) =>
+                                    SellItemFormPage(itemIdToEdit: item.id),
+                          ),
+                        );
+                        if (result == true) {
+                          vm.fetchUserItems();
+                        }
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_forever, color: Colors.red),
+                      onPressed: () async {
+                        final bool confirm = await showDialog(
+                          context: context,
+                          builder:
+                              (context) => AlertDialog(
+                                title: const Text('Delete Listing'),
+                                content: Text(
+                                  'Are you sure you want to delete "${item.name}"?',
                                 ),
-                                child: const Text('Delete'),
+                                actions: [
+                                  TextButton(
+                                    onPressed:
+                                        () => Navigator.pop(context, false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed:
+                                        () => Navigator.pop(context, true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                    ),
+                                    child: const Text('Delete'),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                    );
+                        );
 
-                    if (confirm) {
-                      try {
-                        await vm.deleteItem(item.id);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${item.name} deleted successfully!'),
-                          ),
-                        );
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Failed to delete ${item.name}: ${e.toString()}',
-                            ),
-                          ),
-                        );
-                      }
-                    }
-                  },
+                        if (confirm) {
+                          try {
+                            await vm.deleteItem(item.id);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${item.name} deleted successfully!',
+                                ),
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Failed to delete ${item.name}: ${e.toString()}',
+                                ),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ],
                 ),
-                // You can add an "Edit" button here if you implement editing
-                // IconButton(
-                //   icon: const Icon(Icons.edit, color: Colors.blue),
-                //   onPressed: () {
-                //     Navigator.push(
-                //       context,
-                //       MaterialPageRoute(builder: (context) => SellItemFormPage(itemIdToEdit: item.id)),
-                //     );
-                //   },
-                // ),
               ],
             ),
           ],

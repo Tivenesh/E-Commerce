@@ -36,6 +36,35 @@ class _SellItemFormStateInternal extends State<_SellItemForm> {
   final TextEditingController _quantityController = TextEditingController();
   final TextEditingController _durationController = TextEditingController();
 
+  late SellItemVM _vm; // Declare _vm
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _vm = Provider.of<SellItemVM>(context, listen: false);
+      if (widget.itemIdToEdit != null) {
+        // If editing an existing item
+        _vm.loadItemForEdit(widget.itemIdToEdit!).then((_) {
+          // Load item data
+          // Pre-fill controllers after item data is loaded into the VM's formState
+          _titleController.text = _vm.formState.title;
+          _descriptionController.text = _vm.formState.description;
+          _priceController.text = _vm.formState.price;
+          _categoryController.text = _vm.formState.category;
+          if (_vm.formState.itemType == 'Product') {
+            _quantityController.text = _vm.formState.quantity ?? '';
+          } else if (_vm.formState.itemType == 'Service') {
+            _durationController.text = _vm.formState.duration ?? '';
+          }
+          setState(
+            () {},
+          ); // Rebuild the widget to reflect changes in dropdown/conditional fields
+        });
+      }
+    });
+  }
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -49,17 +78,16 @@ class _SellItemFormStateInternal extends State<_SellItemForm> {
 
   @override
   Widget build(BuildContext context) {
-    final vm = Provider.of<SellItemVM>(context);
-
-    // Initial load/pre-fill for editing (You'll need to fetch data in VM)
-    // For now, we'll keep it simple for new items.
-    // If you implement editing, you'd load item data into vm.formState here
-    // and then update the controllers.
+    _vm = Provider.of<SellItemVM>(
+      context,
+    ); // Access VM here for reactive updates
 
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          widget.itemIdToEdit != null ? 'Edit Listing' : 'List Item/Service',
+          widget.itemIdToEdit != null
+              ? 'Edit Listing'
+              : 'List Item/Service', // Change title based on edit mode
         ),
       ),
       body: SingleChildScrollView(
@@ -67,8 +95,18 @@ class _SellItemFormStateInternal extends State<_SellItemForm> {
         child: Column(
           children: [
             DropdownButton<String>(
-              value: vm.formState.itemType,
-              onChanged: (v) => vm.setItemType(v!),
+              value: _vm.formState.itemType, // Use _vm here
+              onChanged: (v) {
+                _vm.setItemType(v!); // Use _vm here
+                // Clear the other field when item type changes
+                if (v == 'Product') {
+                  _durationController.clear();
+                  _vm.updateField('duration', '');
+                } else {
+                  _quantityController.clear();
+                  _vm.updateField('quantity', '');
+                }
+              },
               items:
                   ['Product', 'Service']
                       .map((e) => DropdownMenuItem(value: e, child: Text(e)))
@@ -77,39 +115,39 @@ class _SellItemFormStateInternal extends State<_SellItemForm> {
             TextField(
               controller: _titleController,
               decoration: const InputDecoration(labelText: 'Title'),
-              onChanged: (v) => vm.updateField('title', v),
+              onChanged: (v) => _vm.updateField('title', v),
             ),
             TextField(
               controller: _descriptionController,
               decoration: const InputDecoration(labelText: 'Description'),
               maxLines: 3,
-              onChanged: (v) => vm.updateField('description', v),
+              onChanged: (v) => _vm.updateField('description', v),
             ),
             TextField(
               controller: _priceController,
               decoration: const InputDecoration(labelText: 'Price'),
               keyboardType: TextInputType.number,
-              onChanged: (v) => vm.updateField('price', v),
+              onChanged: (v) => _vm.updateField('price', v),
             ),
             TextField(
               controller: _categoryController,
               decoration: const InputDecoration(labelText: 'Category'),
-              onChanged: (v) => vm.updateField('category', v),
+              onChanged: (v) => _vm.updateField('category', v),
             ),
-            if (vm.formState.itemType == 'Product')
+            if (_vm.formState.itemType == 'Product') // Use _vm here
               TextField(
                 controller: _quantityController,
                 decoration: const InputDecoration(labelText: 'Quantity'),
                 keyboardType: TextInputType.number,
-                onChanged: (v) => vm.updateField('quantity', v),
+                onChanged: (v) => _vm.updateField('quantity', v),
               ),
-            if (vm.formState.itemType == 'Service')
+            if (_vm.formState.itemType == 'Service') // Use _vm here
               TextField(
                 controller: _durationController,
                 decoration: const InputDecoration(
                   labelText: 'Duration (e.g. 1 hour)',
                 ),
-                onChanged: (v) => vm.updateField('duration', v),
+                onChanged: (v) => _vm.updateField('duration', v),
               ),
             const SizedBox(height: 20),
             ElevatedButton(
@@ -124,8 +162,8 @@ class _SellItemFormStateInternal extends State<_SellItemForm> {
                   return;
                 }
 
-                // Call submitForm from VM
-                await vm.submitForm(currentUser.uid);
+                // Call submitForm from VM, passing itemIdToEdit for update
+                await _vm.submitForm(currentUser.uid, widget.itemIdToEdit);
                 if (context.mounted) {
                   Navigator.pop(
                     context,
