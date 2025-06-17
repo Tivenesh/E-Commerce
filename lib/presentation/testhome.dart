@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart'; // For accessing signOutUseCase
+import 'package:provider/provider.dart';
 
-// Domain Use Cases
 import 'package:e_commerce/data/usecases/auth/signout.dart';
 
-// Presentation Layer - Pages
 import 'package:e_commerce/presentation/carts/cartview.dart';
 import 'package:e_commerce/presentation/items/itemlistview.dart';
 import 'package:e_commerce/presentation/orders/orderlistview.dart';
 import 'package:e_commerce/presentation/users/profileview.dart';
-import 'package:e_commerce/presentation/sell/sellitemvm.dart'; // Make sure this path is correct and points to where SellItemPage is defined!
+import 'package:e_commerce/presentation/sell/sell_items_list_page.dart'; // <--- UPDATED IMPORT
 
 import 'package:e_commerce/utils/logger.dart';
 
-/// The main screen for authenticated users, acting as a navigation shell.
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -22,16 +19,14 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0; // Current selected tab index
+  int _selectedIndex = 0;
 
-  // List of pages to display in the BottomNavigationBar
-  // IMPORTANT: The order here must match the order of BottomNavigationBarItems
   static const List<Widget> _pages = <Widget>[
-    ItemListPage(), // Index 0: Shop
-    CartPage(), // Index 1: Cart
-    OrderListPage(), // Index 2: Orders
-    SellItemPage(), // Index 3: Sell (NEWLY ADDED PAGE)
-    ProfilePage(), // Index 4: Profile
+    ItemListPage(),
+    CartPage(),
+    OrderListPage(),
+    SellItemsListPage(), // <--- USE THE NEW LIST PAGE HERE
+    ProfilePage(),
   ];
 
   void _onItemTapped(int index) {
@@ -42,7 +37,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Access the SignOutUseCase from the Provider tree
     final SignOutUseCase signOutUseCase = Provider.of<SignOutUseCase>(
       context,
       listen: false,
@@ -50,9 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'E-commerce Buyer',
-        ), // You might want to dynamically change this title based on selected tab
+        title: const Text('E-commerce Buyer'),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_outlined),
@@ -60,7 +52,6 @@ class _HomeScreenState extends State<HomeScreen> {
               try {
                 await signOutUseCase();
                 appLogger.i('User successfully signed out from HomeScreen.');
-                // Firebase Auth StreamBuilder in MyApp will handle navigation
               } catch (e) {
                 appLogger.e('Error signing out from HomeScreen: $e', error: e);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -74,9 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: _pages.elementAt(_selectedIndex), // Display the selected page
-      ),
+      body: Center(child: _pages.elementAt(_selectedIndex)),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(icon: Icon(Icons.store), label: 'Shop'),
@@ -88,14 +77,14 @@ class _HomeScreenState extends State<HomeScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.add_shopping_cart),
             label: 'Sell',
-          ), // NEWLY ADDED ICON AND LABEL
+          ), // This icon stays the same
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).primaryColor,
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed, // Essential for 5 or more items
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
