@@ -9,6 +9,7 @@ import 'package:e_commerce/presentation/carts/cartview.dart';
 import 'package:e_commerce/presentation/items/itemlistview.dart';
 import 'package:e_commerce/presentation/orders/orderlistview.dart';
 import 'package:e_commerce/presentation/users/profileview.dart';
+import 'package:e_commerce/presentation/sell/sellitemvm.dart'; // Make sure this path is correct and points to where SellItemPage is defined!
 
 import 'package:e_commerce/utils/logger.dart';
 
@@ -24,11 +25,13 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0; // Current selected tab index
 
   // List of pages to display in the BottomNavigationBar
+  // IMPORTANT: The order here must match the order of BottomNavigationBarItems
   static const List<Widget> _pages = <Widget>[
-    ItemListPage(), // Displays all items/products
-    CartPage(),     // Displays user's cart
-    OrderListPage(), // Displays user's orders
-    ProfilePage(),  // User profile
+    ItemListPage(), // Index 0: Shop
+    CartPage(), // Index 1: Cart
+    OrderListPage(), // Index 2: Orders
+    SellItemPage(), // Index 3: Sell (NEWLY ADDED PAGE)
+    ProfilePage(), // Index 4: Profile
   ];
 
   void _onItemTapped(int index) {
@@ -40,11 +43,16 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     // Access the SignOutUseCase from the Provider tree
-    final SignOutUseCase signOutUseCase = Provider.of<SignOutUseCase>(context, listen: false);
+    final SignOutUseCase signOutUseCase = Provider.of<SignOutUseCase>(
+      context,
+      listen: false,
+    );
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('E-commerce Buyer'),
+        title: const Text(
+          'E-commerce Buyer',
+        ), // You might want to dynamically change this title based on selected tab
         actions: [
           IconButton(
             icon: const Icon(Icons.logout_outlined),
@@ -56,7 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
               } catch (e) {
                 appLogger.e('Error signing out from HomeScreen: $e', error: e);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Failed to sign out: ${e.toString()}')),
+                  SnackBar(
+                    content: Text('Failed to sign out: ${e.toString()}'),
+                  ),
                 );
               }
             },
@@ -69,27 +79,23 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.store),
-            label: 'Shop',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.store), label: 'Shop'),
           BottomNavigationBarItem(
             icon: Icon(Icons.shopping_cart),
             label: 'Cart',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.receipt), label: 'Orders'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.receipt),
-            label: 'Orders',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+            icon: Icon(Icons.add_shopping_cart),
+            label: 'Sell',
+          ), // NEWLY ADDED ICON AND LABEL
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).primaryColor,
         unselectedItemColor: Colors.grey,
         onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed, // Essential for 5 or more items
       ),
     );
   }
