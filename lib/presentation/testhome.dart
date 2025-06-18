@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:e_commerce/data/usecases/auth/signout.dart';
-
+import 'package:e_commerce/routing/routes.dart';
 import 'package:e_commerce/presentation/carts/cartview.dart';
 import 'package:e_commerce/presentation/items/itemlistview.dart';
 import 'package:e_commerce/presentation/orders/orderlistview.dart';
@@ -52,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
               try {
                 await signOutUseCase();
                 appLogger.i('User successfully signed out from HomeScreen.');
+                Navigator.of(context).pushReplacementNamed(AppRoutes.authRoute);
               } catch (e) {
                 appLogger.e('Error signing out from HomeScreen: $e', error: e);
                 ScaffoldMessenger.of(context).showSnackBar(
