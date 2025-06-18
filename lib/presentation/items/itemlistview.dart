@@ -54,7 +54,10 @@ class _ItemListPageState extends State<ItemListPage> {
                 ),
                 filled: true,
                 fillColor: Colors.blueGrey[600],
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 0,
+                  horizontal: 16,
+                ),
               ),
               style: const TextStyle(color: Colors.white),
               cursorColor: Colors.white,
@@ -81,7 +84,10 @@ class _ItemListPageState extends State<ItemListPage> {
           }
           if (viewModel.items.isEmpty) {
             return const Center(
-              child: Text('No items found matching your search.', style: TextStyle(fontSize: 18)),
+              child: Text(
+                'No items found matching your search.',
+                style: TextStyle(fontSize: 18),
+              ),
             );
           }
 
@@ -93,48 +99,61 @@ class _ItemListPageState extends State<ItemListPage> {
               return GestureDetector(
                 onTap: () {
                   // Navigate to the detail page, passing the item's ID as an argument
-                  Navigator.of(context).pushNamed(
-                    AppRoutes.itemDetailRoute,
-                    arguments: item.id,
-                  );
+                  Navigator.of(
+                    context,
+                  ).pushNamed(AppRoutes.itemDetailRoute, arguments: item.id);
                 },
                 child: Card(
                   margin: const EdgeInsets.symmetric(vertical: 6.0),
                   elevation: 3,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(8.0),
                     child: Row(
                       children: [
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8.0),
-                          child: (item.imageUrls.isNotEmpty)
-                              ? Image.network(
-                            item.imageUrls.first,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.cover,
-                            // Error builder for when Image.network fails to load
-                            errorBuilder: (context, error, stackTrace) =>
-                                Container(
-                                  width: 80,
-                                  height: 80,
-                                  decoration: BoxDecoration(
-                                    color: Colors.blueGrey[50],
-                                    borderRadius: BorderRadius.circular(8.0),
+                          child:
+                              (item.imageUrls.isNotEmpty)
+                                  ? Image.network(
+                                    item.imageUrls.first,
+                                    width: 80,
+                                    height: 80,
+                                    fit: BoxFit.cover,
+                                    // Error builder for when Image.network fails to load
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              width: 80,
+                                              height: 80,
+                                              decoration: BoxDecoration(
+                                                color: Colors.blueGrey[50],
+                                                borderRadius:
+                                                    BorderRadius.circular(8.0),
+                                              ),
+                                              child: const Icon(
+                                                Icons.image_not_supported,
+                                                color: Colors.grey,
+                                              ),
+                                            ),
+                                  )
+                                  : Container(
+                                    // Fallback if no URL is provided at all
+                                    width: 80,
+                                    height: 80,
+                                    decoration: BoxDecoration(
+                                      color: Colors.blueGrey[50],
+                                      borderRadius: BorderRadius.circular(8.0),
+                                    ),
+                                    child: Icon(
+                                      item.type == ItemType.product
+                                          ? Icons.shopping_bag
+                                          : Icons.miscellaneous_services,
+                                      color: Colors.blueGrey,
+                                    ),
                                   ),
-                                  child: const Icon(Icons.image_not_supported, color: Colors.grey),
-                                ),
-                          )
-                              : Container( // Fallback if no URL is provided at all
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: Colors.blueGrey[50],
-                              borderRadius: BorderRadius.circular(8.0),
-                            ),
-                            child: Icon(item.type == ItemType.product ? Icons.shopping_bag : Icons.miscellaneous_services, color: Colors.blueGrey),
-                          ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -143,49 +162,85 @@ class _ItemListPageState extends State<ItemListPage> {
                             children: [
                               Text(
                                 item.name,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 item.description,
-                                style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 '${item.type.toString().split('.').last}: ${item.category}',
-                                style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.grey[500]),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
+                                  color: Colors.grey[500],
+                                ),
                               ),
                             ],
                           ),
                         ),
                         Column(
                           children: [
-                            Text('\$${item.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.green)),
+                            Text(
+                              'RM${item.price.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                color: Colors.green,
+                              ),
+                            ),
                             if (item.type == ItemType.product)
-                              Text('Stock: ${item.quantity}', style: TextStyle(fontSize: 12, color: Colors.grey[700])),
+                              Text(
+                                'Stock: ${item.quantity}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
                             ElevatedButton(
-                              onPressed: item.type == ItemType.product && (item.quantity ?? 0) <= 0
-                                  ? null // Disable if out of stock
-                                  : () {
-                                // Add to cart with quantity 1
-                                viewModel.addItemToCart(item.id, 1);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Added ${item.name} to cart!'),
-                                    duration: const Duration(seconds: 1),
-                                  ),
-                                );
-                              },
+                              onPressed:
+                                  item.type == ItemType.product &&
+                                          (item.quantity ?? 0) <= 0
+                                      ? null // Disable if out of stock
+                                      : () {
+                                        // Add to cart with quantity 1
+                                        viewModel.addItemToCart(item.id, 1);
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              'Added ${item.name} to cart!',
+                                            ),
+                                            duration: const Duration(
+                                              seconds: 1,
+                                            ),
+                                          ),
+                                        );
+                                      },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.blueGrey[700],
                                 foregroundColor: Colors.white,
                                 minimumSize: const Size(80, 30),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
                               ),
-                              child: const Icon(Icons.add_shopping_cart, size: 20),
+                              child: const Icon(
+                                Icons.add_shopping_cart,
+                                size: 20,
+                              ),
                             ),
                           ],
                         ),

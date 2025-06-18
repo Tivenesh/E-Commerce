@@ -68,7 +68,7 @@ class OrderListPage extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Total: \$${order.totalAmount.toStringAsFixed(2)}',
+                        'Total: RM${order.totalAmount.toStringAsFixed(2)}',
                         style: const TextStyle(fontSize: 14),
                       ),
                       Text(
@@ -113,7 +113,7 @@ class OrderListPage extends StatelessWidget {
                                     top: 4.0,
                                   ),
                                   child: Text(
-                                    '- ${item.itemName} (x${item.quantity}) @ \$${item.itemPrice.toStringAsFixed(2)}',
+                                    '- ${item.itemName} (x${item.quantity}) @ RM${item.itemPrice.toStringAsFixed(2)}',
                                   ),
                                 ),
                               )

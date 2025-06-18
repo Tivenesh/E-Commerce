@@ -115,7 +115,7 @@ class CartPage extends StatelessWidget {
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   Text(
-                                    '\$${cartItem.itemPrice.toStringAsFixed(2)} / unit',
+                                    'RM${cartItem.itemPrice.toStringAsFixed(2)} / unit',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 13,
@@ -152,7 +152,7 @@ class CartPage extends StatelessWidget {
                                       ),
                                       const Spacer(),
                                       Text(
-                                        '\$${(cartItem.quantity * cartItem.itemPrice).toStringAsFixed(2)}',
+                                        'RM${(cartItem.quantity * cartItem.itemPrice).toStringAsFixed(2)}',
                                         style: const TextStyle(
                                           fontWeight: FontWeight.bold,
                                           fontSize: 16,
@@ -195,7 +195,7 @@ class CartPage extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '\$${viewModel.subtotal.toStringAsFixed(2)}',
+                          'RM${viewModel.subtotal.toStringAsFixed(2)}',
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,

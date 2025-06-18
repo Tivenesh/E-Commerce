@@ -18,8 +18,10 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     super.initState();
     // Fetch item details when the page loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<ItemDetailViewModel>(context, listen: false)
-          .fetchItem(widget.itemId);
+      Provider.of<ItemDetailViewModel>(
+        context,
+        listen: false,
+      ).fetchItem(widget.itemId);
     });
   }
 
@@ -61,12 +63,15 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     children: [
                       Text(
                         item.name,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '\$${item.price.toStringAsFixed(2)}',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        'RM${item.price.toStringAsFixed(2)}',
+                        style: Theme.of(
+                          context,
+                        ).textTheme.headlineMedium?.copyWith(
                           color: Colors.green[700],
                           fontWeight: FontWeight.bold,
                         ),
@@ -97,7 +102,9 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                       const SizedBox(height: 8),
                       Text(
                         item.description,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontSize: 16),
+                        style: Theme.of(
+                          context,
+                        ).textTheme.bodyMedium?.copyWith(fontSize: 16),
                       ),
                     ],
                   ),
@@ -117,7 +124,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
       return Container(
         height: 250,
         color: Colors.blueGrey[50],
-        child: const Icon(Icons.image_not_supported, size: 80, color: Colors.grey),
+        child: const Icon(
+          Icons.image_not_supported,
+          size: 80,
+          color: Colors.grey,
+        ),
       );
     }
     return SizedBox(
@@ -133,7 +144,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             errorBuilder: (context, error, stackTrace) {
               return Container(
                 color: Colors.blueGrey[50],
-                child: const Icon(Icons.broken_image, size: 80, color: Colors.grey),
+                child: const Icon(
+                  Icons.broken_image,
+                  size: 80,
+                  color: Colors.grey,
+                ),
               );
             },
             // You can also add a loading indicator while the image loads.
@@ -141,9 +156,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
               if (loadingProgress == null) return child;
               return Center(
                 child: CircularProgressIndicator(
-                  value: loadingProgress.expectedTotalBytes != null
-                      ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                      : null,
+                  value:
+                      loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              loadingProgress.expectedTotalBytes!
+                          : null,
                 ),
               );
             },
@@ -158,43 +175,55 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
       builder: (context, viewModel, child) {
         bool canAddToCart = false;
         if (viewModel.item != null) {
-          canAddToCart = viewModel.item!.type == ItemType.service || (viewModel.item!.type == ItemType.product && (viewModel.item!.quantity ?? 0) > 0);
+          canAddToCart =
+              viewModel.item!.type == ItemType.service ||
+              (viewModel.item!.type == ItemType.product &&
+                  (viewModel.item!.quantity ?? 0) > 0);
         }
 
         return Padding(
           padding: const EdgeInsets.all(16.0),
           child: ElevatedButton.icon(
-            onPressed: canAddToCart && !viewModel.isLoading
-                ? () async {
-              final success = await viewModel.addItemToCart(1);
-              if (mounted && success) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Added ${viewModel.item!.name} to cart!'),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              } else if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(viewModel.errorMessage ?? 'Could not add item.'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-                : null,
-            icon: viewModel.isLoading
-                ? const SizedBox.shrink()
-                : const Icon(Icons.add_shopping_cart),
-            label: viewModel.isLoading
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text('Add to Cart', style: TextStyle(fontSize: 18)),
+            onPressed:
+                canAddToCart && !viewModel.isLoading
+                    ? () async {
+                      final success = await viewModel.addItemToCart(1);
+                      if (mounted && success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Added ${viewModel.item!.name} to cart!',
+                            ),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      } else if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              viewModel.errorMessage ?? 'Could not add item.',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                    : null,
+            icon:
+                viewModel.isLoading
+                    ? const SizedBox.shrink()
+                    : const Icon(Icons.add_shopping_cart),
+            label:
+                viewModel.isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Add to Cart', style: TextStyle(fontSize: 18)),
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blueGrey[700],
               foregroundColor: Colors.white,
               minimumSize: const Size.fromHeight(50),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
           ),
         );

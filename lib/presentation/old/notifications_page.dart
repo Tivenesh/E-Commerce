@@ -27,7 +27,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     {
       'title': 'Payment Successful',
       'description':
-          'Your payment of \$154.00 for order #ORD-0012 was successful.',
+          'Your payment of RM154.00 for order #ORD-0012 was successful.',
       'time': '2 days ago',
       'isRead': true,
       'type': 'payment',
