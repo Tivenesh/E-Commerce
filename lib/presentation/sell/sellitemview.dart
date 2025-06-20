@@ -1,27 +1,141 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import FirebaseAuth
+import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+
 import 'sellitemformstate.dart';
-import '../../../data/models/item.dart'; // Assuming this path is correct
-import '../../../data/services/item_repo.dart'; // Assuming this path is correct
+import '../../../data/models/item.dart';
+import '../../../data/models/order_item.dart';
+import '../../../data/services/item_repo.dart';
+import '../../../data/services/order_item_repo.dart';
+import '../../../data/services/firebase_auth_service.dart';
+import '../../../data/services/user_repo.dart';
+import 'package:e_commerce/utils/logger.dart';
 
 class SellItemVM extends ChangeNotifier {
-  SellItemFormState formState =
-      SellItemFormState(); // Make sure this is not final if you want to reset it
-  final ItemRepo _itemRepo = ItemRepo();
+  SellItemFormState formState = SellItemFormState();
+  final ItemRepo _itemRepo;
+  final OrderItemRepo _orderRepo;
+  final FirebaseAuthService _firebaseAuthService;
 
-  List<Item> _userItems = []; // List to hold items sold by the current user
+  List<Item> _userItems = [];
+  List<OrderItem> _myOrders = [];
   bool _isLoading = false;
   String? _errorMessage;
 
+  StreamSubscription<List<Item>>? _itemsSubscription;
+  StreamSubscription<List<OrderItem>>? _ordersSubscription;
+  StreamSubscription<User?>? _userAuthSubscription;
+
   List<Item> get userItems => _userItems;
+  List<OrderItem> get myOrders => _myOrders;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
-  SellItemVM() {
-    // Constructor: NO LONGER CALLING fetchUserItems() here.
-    // It will be called explicitly by the UI layer (SellItemsListPage's create method).
+  SellItemVM({
+    ItemRepo? itemRepo,
+    OrderItemRepo? orderRepo,
+    FirebaseAuthService? firebaseAuthService,
+  }) : _itemRepo = itemRepo ?? ItemRepo(),
+       _orderRepo = orderRepo ?? OrderItemRepo(),
+       _firebaseAuthService =
+           firebaseAuthService ?? FirebaseAuthService(UserRepo()) {
+    _initStreams();
+  }
+
+  void _initStreams() {
+    _userAuthSubscription = _firebaseAuthService.authStateChanges.listen((
+      user,
+    ) {
+      if (user != null) {
+        appLogger.d(
+          'SellItemVM: User logged in (${user.uid}), refreshing data.',
+        );
+        fetchUserItems();
+        _fetchIncomingOrders();
+      } else {
+        appLogger.d(
+          'SellItemVM: User logged out, clearing listings and orders.',
+        );
+        _userItems = [];
+        _myOrders = [];
+        _isLoading = false;
+        _errorMessage = null;
+        notifyListeners();
+      }
+    });
+
+    final currentUserId = _firebaseAuthService.currentUser?.uid;
+    if (currentUserId != null) {
+      fetchUserItems();
+      _fetchIncomingOrders();
+    }
+  }
+
+  Future<void> _fetchIncomingOrders() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    _ordersSubscription?.cancel();
+
+    final currentUserId = _firebaseAuthService.currentUser?.uid;
+    if (currentUserId == null) {
+      _errorMessage = "User not logged in to fetch incoming orders.";
+      _myOrders = [];
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      appLogger.d(
+        'SellItemVM: Subscribing to incoming orders for seller: $currentUserId',
+      );
+      _ordersSubscription = _orderRepo
+          .getOrdersBySeller(currentUserId)
+          .listen(
+            (orders) {
+              appLogger.d(
+                'SellItemVM: Received ${orders.length} incoming orders.',
+              );
+              _myOrders = orders;
+              _isLoading = false;
+              notifyListeners();
+            },
+            onError: (error, stack) {
+              _errorMessage = "Failed to load incoming orders: $error";
+              appLogger.e(
+                'SellItemVM: Error fetching incoming orders: $error',
+                error: error,
+                stackTrace: stack,
+              );
+              _myOrders = [];
+              _isLoading = false;
+              notifyListeners();
+            },
+          );
+    } catch (e, stack) {
+      _errorMessage = "Failed to set up incoming orders subscription: $e";
+      appLogger.e(
+        'SellItemVM: Error in _fetchIncomingOrders setup: $e',
+        error: e,
+        stackTrace: stack,
+      );
+      _myOrders = [];
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _itemsSubscription?.cancel();
+    _ordersSubscription?.cancel();
+    _userAuthSubscription?.cancel();
+    appLogger.d('SellItemVM: Disposed and subscriptions cancelled.');
+    super.dispose();
   }
 
   void updateField(String key, String value) {
@@ -63,21 +177,21 @@ class SellItemVM extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- New methods for listing management ---
-
   Future<void> fetchUserItems() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
+    final currentUserId = _firebaseAuthService.currentUser?.uid;
+    if (currentUserId == null) {
+      _errorMessage = "User not logged in.";
+      _userItems = [];
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
     try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        _errorMessage = "User not logged in.";
-        _userItems = []; // Clear items if not logged in
-        return;
-      }
-      _userItems = await _itemRepo.getItemsBySeller(currentUser.uid);
+      _userItems = await _itemRepo.getItemsBySeller(currentUserId);
     } catch (e) {
       _errorMessage = "Failed to load your listings: $e";
       _userItems = [];
@@ -90,17 +204,15 @@ class SellItemVM extends ChangeNotifier {
   Future<void> deleteItem(String itemId) async {
     try {
       await _itemRepo.deleteItem(itemId);
-      // Remove from local list and notify listeners
       _userItems.removeWhere((item) => item.id == itemId);
       notifyListeners();
     } catch (e) {
       _errorMessage = "Failed to delete item: $e";
       notifyListeners();
-      rethrow; // Re-throw to allow UI to show snackbar
+      rethrow;
     }
   }
 
-  // New method to load item data for editing
   Future<void> loadItemForEdit(String itemId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -134,8 +246,6 @@ class SellItemVM extends ChangeNotifier {
   }
 
   Future<void> submitForm(String sellerId, [String? itemIdToUpdate]) async {
-    // itemIdToUpdate is optional
-    // Basic validation before submission
     if (!formState.isValid) {
       _errorMessage = "Please fill all required fields.";
       notifyListeners();
@@ -145,9 +255,8 @@ class SellItemVM extends ChangeNotifier {
     try {
       Item item;
       if (itemIdToUpdate != null) {
-        // Editing an existing item
         item = Item(
-          id: itemIdToUpdate, // Use the existing ID
+          id: itemIdToUpdate,
           sellerId: sellerId,
           name: formState.title,
           description: formState.description,
@@ -165,14 +274,13 @@ class SellItemVM extends ChangeNotifier {
           imageUrls: formState.imageUrls,
           listedAt:
               (await _itemRepo.getItemById(itemIdToUpdate))?.listedAt ??
-              Timestamp.now(), // Preserve original listedAt
+              Timestamp.now(),
           updatedAt: Timestamp.now(),
         );
-        await _itemRepo.updateItem(item); // Update the item
+        await _itemRepo.updateItem(item);
       } else {
-        // Adding a new item
         item = Item(
-          id: const Uuid().v4(), // Generate new ID for new items
+          id: const Uuid().v4(),
           sellerId: sellerId,
           name: formState.title,
           description: formState.description,
@@ -191,19 +299,47 @@ class SellItemVM extends ChangeNotifier {
           listedAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         );
-        await _itemRepo.addItem(item); // Add the item to Firestore
+        await _itemRepo.addItem(item);
       }
 
-      _resetFormState(); // Call a new method to reset the form
+      _resetFormState();
+      fetchUserItems();
     } catch (e) {
       _errorMessage = "Failed to submit listing: $e";
       notifyListeners();
-      rethrow; // Re-throw to allow UI to show snackbar
+      rethrow;
     }
   }
 
   void _resetFormState() {
-    formState = SellItemFormState(); // Re-initialize to clear all fields
+    formState = SellItemFormState();
     notifyListeners();
   }
+
+  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final orderToUpdate = _myOrders.firstWhere(
+        (order) => order.id == orderId,
+      );
+      final updatedOrder = orderToUpdate.copyWith(status: newStatus);
+
+      await _orderRepo.updateOrder(updatedOrder);
+      appLogger.i(
+        'SellItemVM: Updated order $orderId status to ${newStatus.name}',
+      );
+    } catch (e) {
+      _errorMessage = "Failed to update order status: $e";
+      appLogger.e('SellItemVM: Error updating order status: $e', error: e);
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // ✅ Public wrapper to fix the red underline
+  Future<void> fetchMyOrders() async => _fetchIncomingOrders();
 }

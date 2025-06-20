@@ -10,7 +10,10 @@ class UserRepo {
   /// Adds a new user document or updates an existing one if the ID matches.
   Future<void> addUser(User user) async {
     try {
-      await _firestore.collection(_collectionName).doc(user.id).set(user.toJson());
+      await _firestore
+          .collection(_collectionName)
+          .doc(user.id)
+          .set(user.toJson());
       appLogger.i('User added/updated successfully: ${user.username}');
     } on FirebaseException catch (e) {
       appLogger.i('Firebase Exception adding user: ${e.message}');
@@ -24,7 +27,8 @@ class UserRepo {
   /// Fetches a single user by their unique ID.
   Future<User?> getUserById(String userId) async {
     try {
-      final docSnapshot = await _firestore.collection(_collectionName).doc(userId).get();
+      final docSnapshot =
+          await _firestore.collection(_collectionName).doc(userId).get();
       if (docSnapshot.exists) {
         return User.fromFirestore(docSnapshot);
       }
@@ -38,6 +42,19 @@ class UserRepo {
     }
   }
 
+  /// Provides a real-time stream of a single user document.
+  /// This is the new method needed by ProfileViewModel.
+  Stream<User?> getUserStream(String uid) {
+    return _firestore.collection(_collectionName).doc(uid).snapshots().map((
+      docSnapshot,
+    ) {
+      if (docSnapshot.exists) {
+        return User.fromFirestore(docSnapshot);
+      }
+      return null;
+    });
+  }
+
   /// Provides a real-time stream of all user documents.
   Stream<List<User>> getUsers() {
     return _firestore.collection(_collectionName).snapshots().map((snapshot) {
@@ -48,7 +65,10 @@ class UserRepo {
   /// Updates specific fields of an existing user document.
   Future<void> updateUser(User user) async {
     try {
-      await _firestore.collection(_collectionName).doc(user.id).update(user.toJson());
+      await _firestore
+          .collection(_collectionName)
+          .doc(user.id)
+          .update(user.toJson());
       appLogger.i('User updated successfully: ${user.username}');
     } on FirebaseException catch (e) {
       appLogger.i('Firebase Exception updating user: ${e.message}');

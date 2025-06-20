@@ -12,11 +12,11 @@ enum OrderStatus {
   returned,
 }
 
-
 class OrderItem {
   final String id;
   final String buyerId; // ID of the user who placed the order
-  final String sellerId; // ID of the user who is selling the items in this order
+  final String
+  sellerId; // ID of the user who is selling the items in this order
   final List<CartItem> items; // List of items included in this order
   final double totalAmount;
   final OrderStatus status;
@@ -46,9 +46,9 @@ class OrderItem {
       'id': id,
       'buyerId': buyerId,
       'sellerId': sellerId,
-      'items': items.map((item) => item.toJson()).toList(), // Convert CartItem list to JSON list
+      'items': items.map((item) => item.toJson()).toList(),
       'totalAmount': totalAmount,
-      'status': status.toString().split('.').last, // Store as string
+      'status': status.toString().split('.').last,
       'deliveryAddress': deliveryAddress,
       'deliveryInstructions': deliveryInstructions,
       'orderDate': orderDate,
@@ -64,8 +64,12 @@ class OrderItem {
       id: doc.id,
       buyerId: data['buyerId'] ?? '',
       sellerId: data['sellerId'] ?? '',
-      items: (data['items'] as List<dynamic>?)
-              ?.map((itemJson) => CartItem.fromJson(itemJson as Map<String, dynamic>))
+      items:
+          (data['items'] as List<dynamic>?)
+              ?.map(
+                (itemJson) =>
+                    CartItem.fromJson(itemJson as Map<String, dynamic>),
+              )
               .toList() ??
           [],
       totalAmount: (data['totalAmount'] as num?)?.toDouble() ?? 0.0,
@@ -78,6 +82,36 @@ class OrderItem {
       orderDate: data['orderDate'] ?? Timestamp.now(),
       estimatedDeliveryDate: data['estimatedDeliveryDate'],
       deliveredDate: data['deliveredDate'],
+    );
+  }
+
+  /// Allows copying this object with changes
+  OrderItem copyWith({
+    String? id,
+    String? buyerId,
+    String? sellerId,
+    List<CartItem>? items,
+    double? totalAmount,
+    OrderStatus? status,
+    String? deliveryAddress,
+    String? deliveryInstructions,
+    Timestamp? orderDate,
+    Timestamp? estimatedDeliveryDate,
+    Timestamp? deliveredDate,
+  }) {
+    return OrderItem(
+      id: id ?? this.id,
+      buyerId: buyerId ?? this.buyerId,
+      sellerId: sellerId ?? this.sellerId,
+      items: items ?? this.items,
+      totalAmount: totalAmount ?? this.totalAmount,
+      status: status ?? this.status,
+      deliveryAddress: deliveryAddress ?? this.deliveryAddress,
+      deliveryInstructions: deliveryInstructions ?? this.deliveryInstructions,
+      orderDate: orderDate ?? this.orderDate,
+      estimatedDeliveryDate:
+          estimatedDeliveryDate ?? this.estimatedDeliveryDate,
+      deliveredDate: deliveredDate ?? this.deliveredDate,
     );
   }
 }

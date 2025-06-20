@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart'; // Ensure this import is present
 import 'package:e_commerce/presentation/users/profilevm.dart';
+import '../../data/services/supabase_image_uploader.dart';
 
-/// The user profile page (View) for displaying and editing user information.
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -17,29 +17,40 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _profileImageUrlController =
       TextEditingController();
 
+  // Removed: String? _profileImageUrl;
+  // The image URL will now be directly sourced from the ProfileViewModel.
+
+  // Declared and initialized _imageUploader as a class member
+  final SupabaseImageUploader _imageUploader = SupabaseImageUploader();
+
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with current profile data when available
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-      if (viewModel.currentUserProfile != null) {
-        _usernameController.text = viewModel.currentUserProfile!.username;
-        _addressController.text = viewModel.currentUserProfile!.address ?? '';
-        _phoneNumberController.text =
-            viewModel.currentUserProfile!.phoneNumber ?? '';
-        _profileImageUrlController.text =
-            viewModel.currentUserProfile!.profileImageUrl ?? '';
-      }
-      // Listen to changes in the profile data
-      viewModel.addListener(_updateControllers);
+      _initializeControllers(viewModel); // Initial setup of text fields
+      viewModel.addListener(_updateControllers); // Listen for ViewModel updates
     });
+  }
+
+  void _initializeControllers(ProfileViewModel viewModel) {
+    if (viewModel.currentUserProfile != null) {
+      _usernameController.text = viewModel.currentUserProfile!.username;
+      _addressController.text = viewModel.currentUserProfile!.address ?? '';
+      _phoneNumberController.text =
+          viewModel.currentUserProfile!.phoneNumber ?? '';
+      _profileImageUrlController.text =
+          viewModel.currentUserProfile!.profileImageUrl ?? '';
+      print(
+        'DEBUG ProfilePage: Initializing controllers with URL: ${_profileImageUrlController.text}',
+      );
+    }
   }
 
   void _updateControllers() {
     final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
     if (viewModel.currentUserProfile != null) {
-      // Only update if the content has actually changed to avoid cursor jumps
+      // Only update if the text in controller is different from ViewModel
       if (_usernameController.text != viewModel.currentUserProfile!.username) {
         _usernameController.text = viewModel.currentUserProfile!.username;
       }
@@ -52,12 +63,60 @@ class _ProfilePageState extends State<ProfilePage> {
         _phoneNumberController.text =
             viewModel.currentUserProfile!.phoneNumber ?? '';
       }
+      // Update the image URL controller and trigger UI rebuild via Consumer
       if (_profileImageUrlController.text !=
           (viewModel.currentUserProfile!.profileImageUrl ?? '')) {
         _profileImageUrlController.text =
             viewModel.currentUserProfile!.profileImageUrl ?? '';
+        print(
+          'DEBUG ProfilePage: Controllers updated by ViewModel listener. New URL: ${_profileImageUrlController.text}',
+        );
       }
     }
+  }
+
+  Future<void> _uploadProfileImage() async {
+    // Current working implementation using pickAndUploadImage:
+    final url = await _imageUploader.pickAndUploadImage();
+
+    print('DEBUG ProfilePage: URL returned from SupabaseImageUploader: $url');
+
+    if (url != null) {
+      // Use Provider to get the ViewModel and update the profileImageUrl
+      final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
+      await viewModel.updateProfile(profileImageUrl: url);
+      print(
+        'DEBUG ProfilePage: ViewModel updateProfile called with new image URL.',
+      );
+    } else {
+      print(
+        'DEBUG ProfilePage: Supabase upload failed, no URL returned to UI.',
+      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to upload image.')));
+    }
+  }
+
+  void _saveProfile() {
+    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
+    final String? urlToSave =
+        _profileImageUrlController.text.trim().isEmpty
+            ? null
+            : _profileImageUrlController.text.trim();
+
+    print('DEBUG ProfilePage: Calling updateProfile with URL: $urlToSave');
+    viewModel.updateProfile(
+      username: _usernameController.text.trim(),
+      address: _addressController.text.trim(),
+      phoneNumber: _phoneNumberController.text.trim(),
+      profileImageUrl: urlToSave,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(viewModel.errorMessage ?? 'Profile update initiated.'),
+      ),
+    );
   }
 
   @override
@@ -69,23 +128,6 @@ class _ProfilePageState extends State<ProfilePage> {
     _phoneNumberController.dispose();
     _profileImageUrlController.dispose();
     super.dispose();
-  }
-
-  void _saveProfile() {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    viewModel.updateProfile(
-      username: _usernameController.text.trim(),
-      address: _addressController.text.trim(),
-      phoneNumber: _phoneNumberController.text.trim(),
-      profileImageUrl: _profileImageUrlController.text.trim(),
-    );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          viewModel.errorMessage ?? 'Profile updated successfully!',
-        ),
-      ),
-    );
   }
 
   @override
@@ -109,10 +151,10 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             );
           }
-          final user = viewModel.currentUserProfile;
-          if (user == null) {
-            return const Center(child: Text('User profile not available.'));
-          }
+
+          // IMPORTANT: Directly use the profileImageUrl from the ViewModel
+          final String? currentProfileImageUrl =
+              viewModel.currentUserProfile?.profileImageUrl;
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16.0),
@@ -120,23 +162,27 @@ class _ProfilePageState extends State<ProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Center(
-                  child: CircleAvatar(
-                    radius: 60,
-                    backgroundImage:
-                        user.profileImageUrl != null &&
-                                user.profileImageUrl!.isNotEmpty
-                            ? NetworkImage(user.profileImageUrl!)
-                            : null,
-                    child:
-                        (user.profileImageUrl == null ||
-                                user.profileImageUrl!.isEmpty)
-                            ? const Icon(
-                              Icons.person,
-                              size: 60,
-                              color: Colors.blueGrey,
-                            )
-                            : null,
-                    backgroundColor: Colors.blueGrey[50],
+                  child: GestureDetector(
+                    onTap: _uploadProfileImage,
+                    child: CircleAvatar(
+                      radius: 60,
+                      // Use currentProfileImageUrl from ViewModel for display
+                      backgroundImage:
+                          currentProfileImageUrl != null &&
+                                  currentProfileImageUrl.isNotEmpty
+                              ? NetworkImage(currentProfileImageUrl)
+                              : null,
+                      child:
+                          (currentProfileImageUrl == null ||
+                                  currentProfileImageUrl.isEmpty)
+                              ? const Icon(
+                                Icons.person,
+                                size: 60,
+                                color: Colors.blueGrey,
+                              )
+                              : null,
+                      backgroundColor: Colors.blueGrey[50],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
