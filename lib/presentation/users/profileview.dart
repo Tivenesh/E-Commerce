@@ -14,11 +14,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
-  final TextEditingController _profileImageUrlController =
-      TextEditingController();
-
-  // Removed: String? _profileImageUrl;
-  // The image URL will now be directly sourced from the ProfileViewModel.
+  // Removed: final TextEditingController _profileImageUrlController = TextEditingController();
 
   // Declared and initialized _imageUploader as a class member
   final SupabaseImageUploader _imageUploader = SupabaseImageUploader();
@@ -39,11 +35,8 @@ class _ProfilePageState extends State<ProfilePage> {
       _addressController.text = viewModel.currentUserProfile!.address ?? '';
       _phoneNumberController.text =
           viewModel.currentUserProfile!.phoneNumber ?? '';
-      _profileImageUrlController.text =
-          viewModel.currentUserProfile!.profileImageUrl ?? '';
-      print(
-        'DEBUG ProfilePage: Initializing controllers with URL: ${_profileImageUrlController.text}',
-      );
+      // Removed: _profileImageUrlController.text = viewModel.currentUserProfile!.profileImageUrl ?? '';
+      print('DEBUG ProfilePage: Initializing controllers with data.');
     }
   }
 
@@ -63,15 +56,9 @@ class _ProfilePageState extends State<ProfilePage> {
         _phoneNumberController.text =
             viewModel.currentUserProfile!.phoneNumber ?? '';
       }
-      // Update the image URL controller and trigger UI rebuild via Consumer
-      if (_profileImageUrlController.text !=
-          (viewModel.currentUserProfile!.profileImageUrl ?? '')) {
-        _profileImageUrlController.text =
-            viewModel.currentUserProfile!.profileImageUrl ?? '';
-        print(
-          'DEBUG ProfilePage: Controllers updated by ViewModel listener. New URL: ${_profileImageUrlController.text}',
-        );
-      }
+      // The _profileImageUrlController is removed, so no need to update it here.
+      // The image is directly managed by the ViewModel and displayed by the Consumer.
+      print('DEBUG ProfilePage: Controllers updated by ViewModel listener.');
     }
   }
 
@@ -100,17 +87,21 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _saveProfile() {
     final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    final String? urlToSave =
-        _profileImageUrlController.text.trim().isEmpty
-            ? null
-            : _profileImageUrlController.text.trim();
+    // The profileImageUrl will be taken directly from the ViewModel's state,
+    // as it's updated after image upload, or will remain as it was if not uploaded.
+    // No need to get it from a text controller anymore.
+    final String? currentImageUrlInViewModel =
+        viewModel.currentUserProfile?.profileImageUrl;
 
-    print('DEBUG ProfilePage: Calling updateProfile with URL: $urlToSave');
+    print(
+      'DEBUG ProfilePage: Calling updateProfile with current ViewModel URL: $currentImageUrlInViewModel',
+    );
     viewModel.updateProfile(
       username: _usernameController.text.trim(),
       address: _addressController.text.trim(),
       phoneNumber: _phoneNumberController.text.trim(),
-      profileImageUrl: urlToSave,
+      profileImageUrl:
+          currentImageUrlInViewModel, // Pass the URL from the ViewModel
     );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -126,7 +117,7 @@ class _ProfilePageState extends State<ProfilePage> {
     _usernameController.dispose();
     _addressController.dispose();
     _phoneNumberController.dispose();
-    _profileImageUrlController.dispose();
+    // Removed: _profileImageUrlController.dispose();
     super.dispose();
   }
 
@@ -200,13 +191,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   Icons.phone,
                   TextInputType.phone,
                 ),
-                const SizedBox(height: 16),
-                _buildTextField(
-                  _profileImageUrlController,
-                  'Profile Image URL',
-                  Icons.image,
-                  TextInputType.url,
-                ),
+                // Removed the Profile Image URL TextField
+                // const SizedBox(height: 16),
+                // _buildTextField(
+                //   _profileImageUrlController,
+                //   'Profile Image URL',
+                //   Icons.image,
+                //   TextInputType.url,
+                // ),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: viewModel.isLoading ? null : _saveProfile,
