@@ -96,6 +96,9 @@ class _ItemListPageState extends State<ItemListPage> {
             itemCount: viewModel.items.length,
             itemBuilder: (context, index) {
               final item = viewModel.items[index];
+              final sellerName = viewModel.getSellerName(
+                item.sellerId,
+              ); // Get seller name here
               return GestureDetector(
                 onTap: () {
                   // Navigate to the detail page, passing the item's ID as an argument
@@ -165,6 +168,16 @@ class _ItemListPageState extends State<ItemListPage> {
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                'Seller: $sellerName', // Display seller name with "Seller: " prefix
+                                style: TextStyle(
+                                  color: Colors.grey[700],
+                                  fontSize: 12,
+                                  fontStyle: FontStyle.italic,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,

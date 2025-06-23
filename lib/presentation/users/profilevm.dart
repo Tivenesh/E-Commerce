@@ -1,7 +1,8 @@
 import 'package:e_commerce/data/models/user.dart';
 import 'package:e_commerce/data/services/user_repo.dart';
 import 'package:flutter/foundation.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth; // For current user ID
+import 'package:firebase_auth/firebase_auth.dart'
+    as firebase_auth; // For current user ID
 import 'package:cloud_firestore/cloud_firestore.dart' as firestore;
 import 'package:e_commerce/utils/logger.dart';
 
@@ -40,44 +41,40 @@ class ProfileViewModel extends ChangeNotifier {
         return;
       }
 
-      // Listen to real-time updates for the user's profile
-      _userRepository.getUsers().listen(
-        (users) {
-          final user = users.firstWhere(
-            (u) => u.id == uid,
-            orElse:
-                () => User(
-                  id: uid,
-                  email:
-                      firebase_auth.FirebaseAuth.instance.currentUser?.email ??
-                      'N/A',
-                  username:
-                      firebase_auth
-                          .FirebaseAuth
-                          .instance
-                          .currentUser
-                          ?.displayName ??
-                      'New User',
-                  createdAt: firestore.Timestamp.now(),
-                  updatedAt: firestore.Timestamp.now(),
+      // Listen to the user stream for real-time updates
+      _userRepository
+          .getUserStream(uid)
+          .listen(
+            (user) {
+              if (user != null) {
+                _currentUserProfile = user;
+                appLogger.i(
+                  'ProfileViewModel: Fetched user profile: ${user.username}, URL: ${user.profileImageUrl}',
+                );
+              } else {
+                _currentUserProfile = null;
+                appLogger.w(
+                  'ProfileViewModel: User profile not found for UID: $uid',
+                );
+              }
+              _isLoading = false;
+              _errorMessage = null;
+              notifyListeners(); // Notify listeners whenever _currentUserProfile changes
+            },
+            onError: (e) {
+              _isLoading = false;
+              _errorMessage = 'Error fetching profile: ${e.toString()}';
+              notifyListeners();
+              appLogger.e(
+                'ProfileViewModel: Error in user profile stream: $e',
+                error: e,
+              );
+            },
+            onDone:
+                () => appLogger.i(
+                  'ProfileViewModel: User profile stream closed.',
                 ),
           );
-          _currentUserProfile = user;
-          _isLoading = false;
-          _errorMessage = null;
-          notifyListeners();
-          appLogger.d('ProfileViewModel: User profile updated for $uid.');
-        },
-        onError: (error) {
-          _isLoading = false;
-          _errorMessage = 'Failed to load profile: ${error.toString()}';
-          notifyListeners();
-          appLogger.e(
-            'ProfileViewModel: Error fetching user profile stream: $error',
-            error: error,
-          );
-        },
-      );
     } catch (e) {
       _isLoading = false;
       _errorMessage = 'An unexpected error occurred: ${e.toString()}';
@@ -89,6 +86,11 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
+  // OPTIONAL: Make _fetchUserProfile public for explicit refresh if necessary
+  Future<void> fetchUserProfile() async {
+    await _fetchUserProfile();
+  }
+
   /// Updates the user's profile in Firestore.
   Future<void> updateProfile({
     String? username,
@@ -96,6 +98,9 @@ class ProfileViewModel extends ChangeNotifier {
     String? phoneNumber,
     String? profileImageUrl,
   }) async {
+    print(
+      'DEBUG ProfileViewModel: updateProfile received URL: $profileImageUrl',
+    ); // DEBUG
     if (_currentUserProfile == null) {
       _errorMessage = 'No user profile to update.';
       notifyListeners();
@@ -111,13 +116,19 @@ class ProfileViewModel extends ChangeNotifier {
         username: username,
         address: address,
         phoneNumber: phoneNumber,
-        profileImageUrl: profileImageUrl,
+        profileImageUrl:
+            profileImageUrl, // This is where it's assigned to the model
         updatedAt: firestore.Timestamp.now(),
       );
-      await _userRepository.updateUser(updatedProfile);
+      print(
+        'DEBUG ProfileViewModel: Attempting to save updated profile to UserRepo with URL: ${updatedProfile.profileImageUrl}',
+      ); // DEBUG
+      await _userRepository.updateUser(
+        updatedProfile,
+      ); // Make sure updateUser is called here
       _isLoading = false;
       _errorMessage = null;
-      notifyListeners(); // Will also be triggered by stream listener in _fetchUserProfile
+      // notifyListeners() will also be triggered by the stream listener in _fetchUserProfile
       appLogger.i('ProfileViewModel: User profile updated successfully.');
     } catch (e) {
       _isLoading = false;

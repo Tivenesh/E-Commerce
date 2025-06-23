@@ -18,6 +18,8 @@ dependencies:
   uuid: ^4.5.1
   logger: ^2.5.0
   rxdart: ^0.28.0
+  supabase_flutter: ^2.0.0
+  http: ^1.2.1
 
 
 dev_dependencies:

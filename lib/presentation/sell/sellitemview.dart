@@ -1,27 +1,167 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart'; // Import FirebaseAuth
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'dart:async'; // For StreamSubscription
+import 'dart:io'; // For File when picking images
+
+import 'package:image_picker/image_picker.dart'; // For image picking
 import 'sellitemformstate.dart';
-import '../../../data/models/item.dart'; // Assuming this path is correct
-import '../../../data/services/item_repo.dart'; // Assuming this path is correct
+import '../../../data/models/item.dart';
+import '../../../data/models/order_item.dart';
+import '../../../data/services/item_repo.dart';
+import '../../../data/services/order_item_repo.dart';
+import '../../../data/services/firebase_auth_service.dart';
+import '../../../data/services/user_repo.dart';
+import 'package:e_commerce/utils/logger.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SellItemVM extends ChangeNotifier {
-  SellItemFormState formState =
-      SellItemFormState(); // Make sure this is not final if you want to reset it
-  final ItemRepo _itemRepo = ItemRepo();
+  SellItemFormState formState = SellItemFormState();
+  final ItemRepo _itemRepo;
+  final OrderItemRepo _orderRepo;
+  final FirebaseAuthService _firebaseAuthService;
 
-  List<Item> _userItems = []; // List to hold items sold by the current user
+  List<Item> _userItems = [];
+  List<OrderItem> _myOrders = [];
   bool _isLoading = false;
   String? _errorMessage;
 
+  StreamSubscription<List<Item>>? _itemsSubscription;
+  StreamSubscription<List<OrderItem>>? _ordersSubscription;
+  StreamSubscription<fb_auth.User?>? _userAuthSubscription;
+
+  List<dynamic> _selectedImages = [];
+
   List<Item> get userItems => _userItems;
+  List<OrderItem> get myOrders => _myOrders;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  List<dynamic> get selectedImages => _selectedImages;
 
-  SellItemVM() {
-    // Constructor: NO LONGER CALLING fetchUserItems() here.
-    // It will be called explicitly by the UI layer (SellItemsListPage's create method).
+  SellItemVM({
+    ItemRepo? itemRepo,
+    OrderItemRepo? orderRepo,
+    FirebaseAuthService? firebaseAuthService,
+  }) : _itemRepo = itemRepo ?? ItemRepo(),
+       _orderRepo = orderRepo ?? OrderItemRepo(),
+       _firebaseAuthService =
+           firebaseAuthService ?? FirebaseAuthService(UserRepo()) {
+    _initStreams();
+  }
+
+  void _initStreams() {
+    _userAuthSubscription = _firebaseAuthService.authStateChanges.listen((
+      fb_auth.User? user,
+    ) {
+      if (user != null) {
+        appLogger.d(
+          'SellItemVM: User logged in (${user.uid}), refreshing data.',
+        );
+        _subscribeToUserItems(user.uid);
+        _fetchIncomingOrders();
+      } else {
+        appLogger.d(
+          'SellItemVM: User logged out, clearing listings and orders.',
+        );
+        _userItems = [];
+        _myOrders = [];
+        _itemsSubscription?.cancel();
+        _ordersSubscription?.cancel();
+        _isLoading = false;
+        _errorMessage = null;
+        notifyListeners();
+      }
+    });
+
+    final currentUserId = _firebaseAuthService.currentUser?.uid;
+    if (currentUserId != null) {
+      _subscribeToUserItems(currentUserId);
+      _fetchIncomingOrders();
+    }
+  }
+
+  void _subscribeToUserItems(String userId) {
+    _itemsSubscription?.cancel();
+    _itemsSubscription = _itemRepo
+        .getItemsBySellerStream(userId)
+        .listen(
+          (items) {
+            appLogger.d('SellItemVM: Received ${items.length} user items.');
+            _userItems = items;
+            _isLoading = false;
+            notifyListeners();
+          },
+          onError: (error, stack) {
+            _errorMessage = "Failed to load your listings: $error";
+            appLogger.e(
+              'SellItemVM: Error fetching user items stream: $error',
+              error: error,
+              stackTrace: stack,
+            );
+            _userItems = [];
+            _isLoading = false;
+            notifyListeners();
+          },
+        );
+  }
+
+  Future<void> _fetchIncomingOrders() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    _ordersSubscription?.cancel();
+
+    final currentUserId = _firebaseAuthService.currentUser?.uid;
+    if (currentUserId == null) {
+      _errorMessage = "User not logged in to fetch incoming orders.";
+      _myOrders = [];
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    try {
+      _ordersSubscription = _orderRepo
+          .getOrdersBySeller(currentUserId)
+          .listen(
+            (orders) {
+              _myOrders = orders;
+              _isLoading = false;
+              notifyListeners();
+            },
+            onError: (error, stack) {
+              _errorMessage = "Failed to load incoming orders: $error";
+              appLogger.e(
+                'SellItemVM: Error fetching incoming orders: $error',
+                error: error,
+                stackTrace: stack,
+              );
+              _myOrders = [];
+              _isLoading = false;
+              notifyListeners();
+            },
+          );
+    } catch (e, stack) {
+      _errorMessage = "Failed to set up incoming orders subscription: $e";
+      appLogger.e(
+        'SellItemVM: Error in _fetchIncomingOrders setup: $e',
+        error: e,
+        stackTrace: stack,
+      );
+      _myOrders = [];
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _itemsSubscription?.cancel();
+    _ordersSubscription?.cancel();
+    _userAuthSubscription?.cancel();
+    super.dispose();
   }
 
   void updateField(String key, String value) {
@@ -50,57 +190,114 @@ class SellItemVM extends ChangeNotifier {
 
   void setItemType(String type) {
     formState.itemType = type;
+    if (type == 'Product') {
+      formState.duration = null;
+    } else {
+      formState.quantity = null;
+    }
     notifyListeners();
   }
 
-  void addImage(String imageUrl) {
-    formState.imageUrls.add(imageUrl);
+  Future<void> pickImages() async {
+    final ImagePicker picker = ImagePicker();
+    try {
+      final List<XFile> images = await picker.pickMultiImage();
+      if (images.isNotEmpty) {
+        _selectedImages.addAll(images);
+        notifyListeners();
+      }
+    } catch (e) {
+      _errorMessage = "Failed to pick images: $e";
+      notifyListeners();
+      appLogger.e("Error picking images: $e", error: e);
+    }
+  }
+
+  void removeImage(dynamic imageToRemove) {
+    _selectedImages.remove(imageToRemove);
     notifyListeners();
   }
 
-  void removeImage(String imageUrl) {
-    formState.imageUrls.remove(imageUrl);
-    notifyListeners();
-  }
+  Future<List<String>> _uploadImages() async {
+    final supabase = Supabase.instance.client;
+    List<String> imageUrls = [];
+    final String userId = _firebaseAuthService.currentUser!.uid;
 
-  // --- New methods for listing management ---
+    for (final image in _selectedImages) {
+      if (image is XFile) {
+        final fileName = '${userId}_${const Uuid().v4()}_${image.name}';
+        final fileBytes = await image.readAsBytes();
+
+        try {
+          await supabase.storage
+              .from('images')
+              .uploadBinary(
+                fileName,
+                fileBytes,
+                fileOptions: const FileOptions(contentType: 'image/jpeg'),
+              );
+
+          final publicUrl = supabase.storage
+              .from('images')
+              .getPublicUrl(fileName);
+          imageUrls.add(publicUrl);
+        } catch (e) {
+          appLogger.e("⛔ Error uploading image to Supabase: $e");
+          rethrow;
+        }
+      } else if (image is String) {
+        imageUrls.add(image);
+      }
+    }
+    return imageUrls;
+  }
 
   Future<void> fetchUserItems() async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
-    try {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      if (currentUser == null) {
-        _errorMessage = "User not logged in.";
-        _userItems = []; // Clear items if not logged in
-        return;
-      }
-      _userItems = await _itemRepo.getItemsBySeller(currentUser.uid);
-    } catch (e) {
-      _errorMessage = "Failed to load your listings: $e";
+    final currentUserId = _firebaseAuthService.currentUser?.uid;
+    if (currentUserId == null) {
+      _errorMessage = "User not logged in.";
       _userItems = [];
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+    _subscribeToUserItems(currentUserId);
+  }
+
+  Future<void> deleteItem(String itemId) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final itemToDelete = await _itemRepo.getItemById(itemId);
+      if (itemToDelete != null) {
+        final supabase = Supabase.instance.client;
+        for (String imageUrl in itemToDelete.imageUrls) {
+          try {
+            final uri = Uri.parse(imageUrl);
+            final segments = uri.pathSegments;
+            final bucketPath = segments.sublist(1).join('/');
+            await supabase.storage.from('images').remove([bucketPath]);
+          } catch (e) {
+            appLogger.w('⚠️ Failed to delete image from Supabase: $e');
+          }
+        }
+      }
+      await _itemRepo.deleteItem(itemId);
+    } catch (e) {
+      _errorMessage = "Failed to delete item: $e";
+      appLogger.e("Error deleting item: $e", error: e);
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> deleteItem(String itemId) async {
-    try {
-      await _itemRepo.deleteItem(itemId);
-      // Remove from local list and notify listeners
-      _userItems.removeWhere((item) => item.id == itemId);
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = "Failed to delete item: $e";
-      notifyListeners();
-      rethrow; // Re-throw to allow UI to show snackbar
-    }
-  }
-
-  // New method to load item data for editing
   Future<void> loadItemForEdit(String itemId) async {
     _isLoading = true;
     _errorMessage = null;
@@ -114,14 +311,9 @@ class SellItemVM extends ChangeNotifier {
         formState.category = item.category;
         formState.itemType =
             item.type == ItemType.product ? 'Product' : 'Service';
-        if (item.type == ItemType.product) {
-          formState.quantity = item.quantity?.toString();
-          formState.duration = null;
-        } else {
-          formState.duration = item.duration;
-          formState.quantity = null;
-        }
-        formState.imageUrls = item.imageUrls;
+        formState.quantity = item.quantity?.toString();
+        formState.duration = item.duration;
+        _selectedImages = List.from(item.imageUrls);
       } else {
         _errorMessage = "Item not found.";
       }
@@ -134,20 +326,25 @@ class SellItemVM extends ChangeNotifier {
   }
 
   Future<void> submitForm(String sellerId, [String? itemIdToUpdate]) async {
-    // itemIdToUpdate is optional
-    // Basic validation before submission
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
     if (!formState.isValid) {
       _errorMessage = "Please fill all required fields.";
+      _isLoading = false;
       notifyListeners();
       return;
     }
 
     try {
+      List<String> uploadedImageUrls = await _uploadImages();
+      formState.imageUrls = uploadedImageUrls;
+
       Item item;
       if (itemIdToUpdate != null) {
-        // Editing an existing item
         item = Item(
-          id: itemIdToUpdate, // Use the existing ID
+          id: itemIdToUpdate,
           sellerId: sellerId,
           name: formState.title,
           description: formState.description,
@@ -165,14 +362,13 @@ class SellItemVM extends ChangeNotifier {
           imageUrls: formState.imageUrls,
           listedAt:
               (await _itemRepo.getItemById(itemIdToUpdate))?.listedAt ??
-              Timestamp.now(), // Preserve original listedAt
+              Timestamp.now(),
           updatedAt: Timestamp.now(),
         );
-        await _itemRepo.updateItem(item); // Update the item
+        await _itemRepo.updateItem(item);
       } else {
-        // Adding a new item
         item = Item(
-          id: const Uuid().v4(), // Generate new ID for new items
+          id: const Uuid().v4(),
           sellerId: sellerId,
           name: formState.title,
           description: formState.description,
@@ -191,19 +387,45 @@ class SellItemVM extends ChangeNotifier {
           listedAt: Timestamp.now(),
           updatedAt: Timestamp.now(),
         );
-        await _itemRepo.addItem(item); // Add the item to Firestore
+        await _itemRepo.addItem(item);
       }
 
-      _resetFormState(); // Call a new method to reset the form
+      _resetFormState();
     } catch (e) {
       _errorMessage = "Failed to submit listing: $e";
       notifyListeners();
-      rethrow; // Re-throw to allow UI to show snackbar
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
   void _resetFormState() {
-    formState = SellItemFormState(); // Re-initialize to clear all fields
+    formState = SellItemFormState();
+    _selectedImages = [];
     notifyListeners();
   }
+
+  Future<void> updateOrderStatus(String orderId, OrderStatus newStatus) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final orderToUpdate = _myOrders.firstWhere(
+        (order) => order.id == orderId,
+      );
+      final updatedOrder = orderToUpdate.copyWith(status: newStatus);
+      await _orderRepo.updateOrder(updatedOrder);
+    } catch (e) {
+      _errorMessage = "Failed to update order status: $e";
+      appLogger.e('SellItemVM: Error updating order status: $e', error: e);
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> fetchMyOrders() async => _fetchIncomingOrders();
 }

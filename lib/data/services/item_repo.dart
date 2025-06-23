@@ -50,18 +50,14 @@ class ItemRepo {
   }
 
   /// Fetches items listed by a specific seller (one-time fetch).
-  // Changed from Stream<List<Item>> to Future<List<Item>>
   Future<List<Item>> getItemsBySeller(String sellerId) async {
     try {
       final querySnapshot =
           await _firestore
               .collection(_collectionName)
               .where('sellerId', isEqualTo: sellerId)
-              .orderBy(
-                'listedAt',
-                descending: true,
-              ) // Added for consistent ordering
-              .get(); // Changed from .snapshots() to .get()
+              .orderBy('listedAt', descending: true)
+              .get();
 
       return querySnapshot.docs.map((doc) => Item.fromFirestore(doc)).toList();
     } on FirebaseException catch (e) {
@@ -71,6 +67,19 @@ class ItemRepo {
       appLogger.e('Error getting items by seller: $e');
       rethrow;
     }
+  }
+
+  /// Provides a real-time stream of items listed by a specific seller.
+  Stream<List<Item>> getItemsBySellerStream(String sellerId) {
+    return _firestore
+        .collection(_collectionName)
+        .where('sellerId', isEqualTo: sellerId)
+        .orderBy('listedAt', descending: true)
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => Item.fromFirestore(doc)).toList(),
+        );
   }
 
   /// Updates specific fields of an existing item document.

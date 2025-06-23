@@ -22,7 +22,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart'
     as firebase_auth; // Alias for Firebase Auth's User
 import 'package:provider/provider.dart'; // For Provider, Consumer, Selector
-
+import 'package:supabase_flutter/supabase_flutter.dart';
 // Firebase options
 import 'firebase_options.dart';
 
@@ -35,6 +35,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
+  await Supabase.initialize(
+    url: 'https://uhhemalhxfozystsqcfl.supabase.co',
+    anonKey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVoaGVtYWxoeGZvenlzdHNxY2ZsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTA0Mzk3MjYsImV4cCI6MjA2NjAxNTcyNn0.Xg7oXIKlS6Zn2wmLwQwQDul4MYiftk3J9yLr2gkvthY',
+  );
   runApp(const MyApp());
 }
 

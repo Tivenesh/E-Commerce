@@ -1,22 +1,19 @@
 import 'package:e_commerce/data/models/item.dart';
 import 'package:e_commerce/data/services/item_repo.dart';
 import 'package:flutter/foundation.dart';
-import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart'; // To add items to cart
+import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart';
 import 'package:e_commerce/utils/logger.dart';
-import 'package:rxdart/rxdart.dart'; // For debounce on search 
-import 'package:firebase_auth/firebase_auth.dart'
-    as firebase_auth; // For current user ID
+import 'package:rxdart/rxdart.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// ViewModel for the item listing screen (all items, products & services).
-/// Manages the state and business logic related to displaying items, searching,
-/// and adding to cart.
 class ItemListViewModel extends ChangeNotifier {
   final ItemRepo _itemRepository;
   final AddItemToCartUseCase _addItemToCartUseCase;
 
-  List<Item> _allItems = []; // All items fetched from repository
-  List<Item> _filteredItems = []; // Items displayed after filtering/searching
-  List<Item> get items => _filteredItems; // Exposed state for the View
+  List<Item> _allItems = [];
+  List<Item> _filteredItems = [];
+  List<Item> get items => _filteredItems;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -24,21 +21,22 @@ class ItemListViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  String _searchQuery = ''; // Current search query
+  String _searchQuery = '';
 
-  // Stream for search query with debounce
   final _searchQueryController = BehaviorSubject<String>();
   Stream<String> get searchQueryStream => _searchQueryController.stream;
+
+  final Map<String, String> _sellerNamesCache = {};
 
   ItemListViewModel(this._itemRepository, this._addItemToCartUseCase) {
     _isLoading = true;
     notifyListeners();
 
-    // Listen to real-time updates from the repository
     _itemRepository.getItems().listen(
-      (items) {
+      (items) async {
         _allItems = items;
-        _filterItems(); // Re-filter whenever base data changes
+        await _fetchSellerNames(); // Ensure seller names are fetched before filtering
+        _filterItems();
         _isLoading = false;
         _errorMessage = null;
         notifyListeners();
@@ -57,14 +55,13 @@ class ItemListViewModel extends ChangeNotifier {
       },
     );
 
-    // Debounce search query to avoid excessive filtering on every keystroke
     _searchQueryController
         .debounceTime(const Duration(milliseconds: 300))
         .listen(
           (query) {
             _searchQuery = query;
             _filterItems();
-            notifyListeners(); // Notify listeners after filtering with new query
+            notifyListeners();
             appLogger.d(
               'ItemListViewModel: Search query updated: $_searchQuery',
             );
@@ -78,29 +75,59 @@ class ItemListViewModel extends ChangeNotifier {
         );
   }
 
-  /// Filters items based on the current search query.
+  Future<void> _fetchSellerNames() async {
+    final uniqueSellerIds = _allItems.map((item) => item.sellerId).toSet();
+    for (final sellerId in uniqueSellerIds) {
+      if (!_sellerNamesCache.containsKey(sellerId)) {
+        try {
+          final doc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(sellerId)
+                  .get();
+          final name = doc.data()?['username'] ?? 'Unknown';
+          _sellerNamesCache[sellerId] = name;
+        } catch (_) {
+          _sellerNamesCache[sellerId] = 'Unknown';
+        }
+      }
+    }
+  }
+
+  String getSellerName(String sellerId) {
+    return _sellerNamesCache[sellerId] ?? 'Unknown';
+  }
+
   void _filterItems() {
+    final currentUserId = firebase_auth.FirebaseAuth.instance.currentUser?.uid;
+    // Only show items not sold by the current user
+    List<Item> visibleItems =
+        _allItems.where((item) => item.sellerId != currentUserId).toList();
+
     if (_searchQuery.isEmpty) {
-      _filteredItems = List.from(_allItems); // Show all if no search query
+      _filteredItems = visibleItems;
     } else {
+      final queryLower = _searchQuery.toLowerCase();
       _filteredItems =
-          _allItems.where((item) {
-            final queryLower = _searchQuery.toLowerCase();
+          visibleItems.where((item) {
+            final sellerName =
+                getSellerName(
+                  item.sellerId,
+                ).toLowerCase(); // Include seller name in search
             return item.name.toLowerCase().contains(queryLower) ||
                 item.description.toLowerCase().contains(queryLower) ||
-                item.category.toLowerCase().contains(queryLower);
+                item.category.toLowerCase().contains(queryLower) ||
+                sellerName.contains(
+                  queryLower,
+                ); // Allow searching by seller name
           }).toList();
     }
   }
 
-  /// Updates the search query. This is called from the View's search TextField.
   void updateSearchQuery(String query) {
-    _searchQueryController.add(
-      query,
-    ); // Add to the stream, debounce will handle it
+    _searchQueryController.add(query);
   }
 
-  /// Adds a specific item to the current authenticated user's cart.
   Future<void> addItemToCart(String itemId, int quantity) async {
     final String? userId = firebase_auth.FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) {
@@ -134,7 +161,7 @@ class ItemListViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
-    _searchQueryController.close(); // Close the BehaviorSubject
+    _searchQueryController.close();
     super.dispose();
   }
 }

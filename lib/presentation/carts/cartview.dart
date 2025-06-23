@@ -238,7 +238,7 @@ class CartPage extends StatelessWidget {
 
   void _showPlaceOrderDialog(BuildContext context, CartViewModel viewModel) {
     final TextEditingController addressController = TextEditingController(
-      text: '123 My Street, My City',
+      // text: '123 My Street, My City',
     ); // Pre-fill for demo
     final TextEditingController instructionsController =
         TextEditingController();
