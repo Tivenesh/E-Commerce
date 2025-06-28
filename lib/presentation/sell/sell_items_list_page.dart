@@ -7,6 +7,7 @@ import 'package:e_commerce/presentation/sell/sell_item_form_page.dart';
 import 'package:e_commerce/data/models/item.dart'; // For Item and ItemType
 import 'package:e_commerce/data/models/order_item.dart'; // Your OrderItem and OrderStatus
 import 'package:e_commerce/data/models/user.dart'; // Import your User model
+import 'package:e_commerce/presentation/sell/monthly_sales_chart.dart'; // Import your MonthlySalesChart
 
 class SellItemsListPage extends StatefulWidget {
   const SellItemsListPage({super.key});
@@ -52,6 +53,10 @@ class _SellItemsListPageState extends State<SellItemsListPage>
       },
       child: Consumer<SellItemVM>(
         builder: (context, vm, child) {
+          // Get the current user's ID to pass to the chart
+          final String? currentSellerId =
+              vm.firebaseAuthService.currentUser?.uid;
+
           return Scaffold(
             appBar: AppBar(
               title: const Text('Seller Dashboard'),
@@ -123,7 +128,12 @@ class _SellItemsListPageState extends State<SellItemsListPage>
                 ),
 
                 // Monthly Sale Tab Content
-                const Center(child: Text('Monthly Sale Content')),
+                // Replaced the placeholder with MonthlySalesChart
+                currentSellerId == null
+                    ? const Center(
+                      child: Text('Please log in to view sales data.'),
+                    )
+                    : MonthlySalesChart(sellerId: currentSellerId),
               ],
             ),
             // Conditionally show the FloatingActionButton
@@ -177,7 +187,7 @@ class _UserItemCard extends StatelessWidget {
                         item.imageUrls.first,
                         width: 80,
                         height: 80,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.contain,
                         errorBuilder:
                             (context, error, stackTrace) => const Icon(
                               Icons.broken_image,

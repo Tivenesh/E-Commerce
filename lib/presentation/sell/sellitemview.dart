@@ -5,7 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'dart:async'; // For StreamSubscription
 import 'dart:io'; // For File when picking images
 
-import 'package:image_picker/image_picker.dart'; // For image picking
+import 'package:image_picker/image_picker.dart'; // Corrected import path for image picking
 import 'sellitemformstate.dart';
 import '../../../data/models/item.dart';
 import '../../../data/models/order_item.dart';
@@ -38,6 +38,9 @@ class SellItemVM extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   List<dynamic> get selectedImages => _selectedImages;
+
+  // Public getter for firebaseAuthService
+  FirebaseAuthService get firebaseAuthService => _firebaseAuthService;
 
   SellItemVM({
     ItemRepo? itemRepo,

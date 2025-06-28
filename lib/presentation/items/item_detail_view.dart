@@ -131,8 +131,9 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         ),
       );
     }
-    return SizedBox(
-      height: 250,
+    return AspectRatio(
+      // Changed SizedBox to AspectRatio
+      aspectRatio: 16 / 14, // You can adjust this ratio as needed
       child: PageView.builder(
         itemCount: imageUrls.length,
         itemBuilder: (context, index) {
