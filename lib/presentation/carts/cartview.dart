@@ -4,8 +4,55 @@ import 'package:e_commerce/presentation/carts/cartvm.dart';
 import 'package:e_commerce/data/models/cart.dart'; // For CartItem type
 
 /// The user's shopping cart page (View).
-class CartPage extends StatelessWidget {
+class CartPage extends StatefulWidget {
+  // <<<--- MUST BE StatefulWidget
   const CartPage({super.key});
+
+  @override
+  State<CartPage> createState() => _CartPageState();
+}
+
+class _CartPageState extends State<CartPage> {
+  // <<<--- THESE CONTROLLERS MUST BE DECLARED AT THE STATE LEVEL
+  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _instructionsController = TextEditingController();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the CartViewModel instance
+    final cartViewModel = Provider.of<CartViewModel>(context, listen: false);
+
+    // <<<--- ADD THIS LISTENER TO UPDATE THE ADDRESS FIELD
+    cartViewModel.addListener(_updateAddressField);
+
+    // Call it once to set the initial value if data is already loaded when the widget builds
+    _updateAddressField();
+  }
+
+  // <<<--- THIS METHOD IS CRUCIAL FOR UPDATING THE TEXTFIELD
+  void _updateAddressField() {
+    final cartViewModel = Provider.of<CartViewModel>(context, listen: false);
+    if (cartViewModel.userAddress != null &&
+        _addressController.text != cartViewModel.userAddress) {
+      _addressController.text = cartViewModel.userAddress!;
+    } else if (cartViewModel.userAddress == null &&
+        _addressController.text.isNotEmpty) {
+      _addressController.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    // <<<--- CRITICAL: REMOVE LISTENER AND DISPOSE CONTROLLERS
+    Provider.of<CartViewModel>(
+      context,
+      listen: false,
+    ).removeListener(_updateAddressField);
+    _addressController.dispose();
+    _instructionsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,7 +112,6 @@ class CartPage extends StatelessWidget {
                                         width: 80,
                                         height: 80,
                                         fit: BoxFit.cover,
-                                        // Error builder for when Image.network fails to load
                                         errorBuilder:
                                             (context, error, stackTrace) =>
                                                 Container(
@@ -81,11 +127,10 @@ class CartPage extends StatelessWidget {
                                                   child: const Icon(
                                                     Icons.image_not_supported,
                                                     color: Colors.grey,
-                                                  ), // Broken image icon
+                                                  ),
                                                 ),
                                       )
                                       : Container(
-                                        // Fallback if no URL is provided at all
                                         width: 80,
                                         height: 80,
                                         decoration: BoxDecoration(
@@ -97,7 +142,7 @@ class CartPage extends StatelessWidget {
                                         child: const Icon(
                                           Icons.shopping_cart,
                                           color: Colors.blueGrey,
-                                        ), // Generic cart icon
+                                        ),
                                       ),
                             ),
                             const SizedBox(width: 12),
@@ -237,11 +282,13 @@ class CartPage extends StatelessWidget {
   }
 
   void _showPlaceOrderDialog(BuildContext context, CartViewModel viewModel) {
-    final TextEditingController addressController = TextEditingController(
-      // text: '123 My Street, My City',
-    ); // Pre-fill for demo
-    final TextEditingController instructionsController =
-        TextEditingController();
+    // <<<--- This line ensures the controller has the latest address from the VM
+    // right before showing the dialog.
+    if (viewModel.userAddress != null) {
+      _addressController.text = viewModel.userAddress!;
+    } else {
+      _addressController.clear(); // Clear if no address
+    }
 
     showDialog(
       context: context,
@@ -253,13 +300,15 @@ class CartPage extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: addressController,
+                  controller:
+                      _addressController, // <<<--- MUST USE STATE-LEVEL CONTROLLER
                   decoration: const InputDecoration(
                     labelText: 'Delivery Address',
                   ),
                 ),
                 TextField(
-                  controller: instructionsController,
+                  controller:
+                      _instructionsController, // <<<--- MUST USE STATE-LEVEL CONTROLLER
                   decoration: const InputDecoration(
                     labelText: 'Delivery Instructions (Optional)',
                   ),
@@ -277,7 +326,7 @@ class CartPage extends StatelessWidget {
             ElevatedButton(
               child: const Text('Confirm Order'),
               onPressed: () async {
-                if (addressController.text.trim().isEmpty) {
+                if (_addressController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
                     const SnackBar(
                       content: Text('Delivery address cannot be empty!'),
@@ -288,8 +337,8 @@ class CartPage extends StatelessWidget {
                 Navigator.of(dialogContext).pop(); // Close dialog
 
                 final order = await viewModel.placeOrder(
-                  addressController.text.trim(),
-                  deliveryInstructions: instructionsController.text.trim(),
+                  _addressController.text.trim(),
+                  deliveryInstructions: _instructionsController.text.trim(),
                 );
 
                 if (order != null) {

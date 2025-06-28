@@ -159,7 +159,7 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
                             showTitles: true,
                             getTitlesWidget: (value, meta) {
                               return Text(
-                                '\$${value.toInt()}',
+                                '\RM${value.toInt()}',
                                 style: const TextStyle(fontSize: 10),
                               );
                             },
@@ -189,7 +189,7 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
                               ),
                               children: <TextSpan>[
                                 TextSpan(
-                                  text: '\$${rod.toY.toStringAsFixed(2)}',
+                                  text: '\RM${rod.toY.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                     color: Colors.yellow,
                                     fontSize: 12,

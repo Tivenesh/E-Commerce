@@ -1,22 +1,22 @@
 import 'package:e_commerce/data/services/cart_repo.dart';
-import 'package:e_commerce/data/services/firebase_auth_service.dart';
+import 'package:e_commerce/data/services/firebase_auth_service.dart'; // Your specific Auth Service
 import 'package:e_commerce/data/services/item_repo.dart';
 import 'package:e_commerce/data/services/order_item_repo.dart';
 import 'package:e_commerce/data/services/payment_repo.dart';
-import 'package:e_commerce/data/services/user_repo.dart';
+import 'package:e_commerce/data/services/user_repo.dart'; // <<<--- THIS IS THE KEY IMPORT
 import 'package:e_commerce/data/usecases/auth/signin.dart';
 import 'package:e_commerce/data/usecases/auth/signout.dart';
 import 'package:e_commerce/data/usecases/auth/signup.dart';
 import 'package:e_commerce/data/usecases/items/add_item_to_cart_usecase.dart';
 import 'package:e_commerce/data/usecases/items/get_all_item_usecase.dart';
 import 'package:e_commerce/data/usecases/orders/place_order_usecase.dart';
-import 'package:e_commerce/presentation/authscreen.dart';
-import 'package:e_commerce/presentation/carts/cartvm.dart';
-import 'package:e_commerce/presentation/items/itemlistvm.dart';
-import 'package:e_commerce/presentation/orders/orderlistvm.dart';
-import 'package:e_commerce/presentation/testhome.dart';
-import 'package:e_commerce/presentation/users/profilevm.dart';
-import 'package:e_commerce/routing/routes.dart';
+import 'package:e_commerce/presentation/authscreen.dart'; // Your AuthScreen
+import 'package:e_commerce/presentation/carts/cartvm.dart'; // Your CartViewModel
+import 'package:e_commerce/presentation/items/itemlistvm.dart'; // Your ItemListViewModel
+import 'package:e_commerce/presentation/orders/orderlistvm.dart'; // Your OrderListViewModel
+import 'package:e_commerce/presentation/testhome.dart'; // Your TestHome
+import 'package:e_commerce/presentation/users/profilevm.dart'; // Your ProfileViewModel
+import 'package:e_commerce/routing/routes.dart'; // Your AppRouter and AppRoutes
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart'
@@ -26,7 +26,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // Firebase options
 import 'firebase_options.dart';
 
-// Models
+// Models (assuming these are in your project)
 
 // Utils
 import 'package:e_commerce/utils/logger.dart';
@@ -74,7 +74,7 @@ class MyApp extends StatelessWidget {
       firebaseCartService,
       firebaseOrderService,
       firebaseItemService,
-      firebaseUserService,
+      firebaseUserService, // <<<--- Ensure firebaseUserService is passed here
     );
     final GetAllItemsUseCase getAllProductsUseCase = GetAllItemsUseCase(
       firebaseItemService,
@@ -100,19 +100,31 @@ class MyApp extends StatelessWidget {
         Provider<AddItemToCartUseCase>(create: (_) => addItemToCartUseCase),
         Provider<PlaceOrderUseCase>(create: (_) => placeOrderUseCase),
         Provider<GetAllItemsUseCase>(create: (_) => getAllProductsUseCase),
+
+        // Corrected ProfileViewModel instantiation
         ChangeNotifierProvider(
           create:
               (context) => ProfileViewModel(
-                Provider.of<UserRepo>(context, listen: false),
+                Provider.of<UserRepo>(context, listen: false), // First argument
+                Provider.of<FirebaseAuthService>(
+                  context,
+                  listen: false,
+                ), // Second argument
               ),
         ),
+        // ItemListViewModel instantiation - CORRECTED TO PASS FIREBASEAUTHSERVICE
         ChangeNotifierProvider(
           create:
               (context) => ItemListViewModel(
                 Provider.of<ItemRepo>(context, listen: false),
                 Provider.of<AddItemToCartUseCase>(context, listen: false),
+                Provider.of<FirebaseAuthService>(
+                  context,
+                  listen: false,
+                ), // ADDED THIS ARGUMENT
               ),
         ),
+        // CORRECTED CartViewModel instantiation
         ChangeNotifierProvider(
           create:
               (context) => CartViewModel(
@@ -125,12 +137,21 @@ class MyApp extends StatelessWidget {
                   context,
                   listen: false,
                 ), // Dependency needed for CartViewModel
+                Provider.of<UserRepo>(context, listen: false),
+                Provider.of<FirebaseAuthService>(
+                  context,
+                  listen: false,
+                ), // Add FirebaseAuthService
               ),
         ),
         ChangeNotifierProvider(
           create:
               (context) => OrderListViewModel(
                 Provider.of<OrderItemRepo>(context, listen: false),
+                Provider.of<FirebaseAuthService>(
+                  context,
+                  listen: false,
+                ), // Add FirebaseAuthService
               ),
         ),
         // Add more providers here if you have other global services or view models that aren't tied to a specific route.
