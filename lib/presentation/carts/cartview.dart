@@ -56,12 +56,40 @@ class _CartPageState extends State<CartPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Define the vibrant colors from your ItemListPage theme
+    const Color primaryPink = Color.fromARGB(255, 200, 100, 163);
+    const Color accentPurple = Colors.purpleAccent;
+    final Color buttonColor = const Color.fromARGB(
+      255,
+      204,
+      80,
+      159,
+    ).withOpacity(0.9); // Slightly darker for buttons
+    final Color deleteButtonColor =
+        Colors.redAccent.shade400; // A strong but pleasant red for delete
+
     return Scaffold(
-      appBar: AppBar(title: const Text('My Cart')),
+      appBar: AppBar(
+        title: const Text(
+          'My Cart',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        // Use a gradient background for the AppBar for a "wow" effect, matching ItemListPage
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [primaryPink, accentPurple],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 0, // Keep it flat for a modern look
+      ),
       body: Consumer<CartViewModel>(
         builder: (context, viewModel, child) {
           if (viewModel.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return Center(child: CircularProgressIndicator(color: primaryPink));
           }
           if (viewModel.errorMessage != null) {
             return Center(
@@ -76,10 +104,57 @@ class _CartPageState extends State<CartPage> {
             );
           }
           if (viewModel.cartItems.isEmpty) {
-            return const Center(
-              child: Text(
-                'Your cart is empty. Start shopping!',
-                style: TextStyle(fontSize: 18),
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons
+                        .shopping_bag_outlined, // A more stylish empty cart icon
+                    size: 100,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Your cart is empty. Let\'s find some amazing items!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 19,
+                      color: Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // Optionally navigate to ItemListPage or a specific product section
+                      // Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListPage()));
+                    },
+                    icon: const Icon(
+                      Icons.add_shopping_cart,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Start Shopping',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryPink,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 25,
+                        vertical: 15,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(30),
+                      ),
+                      elevation: 8,
+                    ),
+                  ),
+                ],
               ),
             );
           }
@@ -88,64 +163,76 @@ class _CartPageState extends State<CartPage> {
             children: [
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
+                  padding: const EdgeInsets.all(12.0),
                   itemCount: viewModel.cartItems.length,
                   itemBuilder: (context, index) {
                     final cartItem = viewModel.cartItems[index];
                     return Card(
-                      margin: const EdgeInsets.symmetric(vertical: 6.0),
-                      elevation: 3,
+                      margin: const EdgeInsets.symmetric(vertical: 8.0),
+                      elevation: 8, // Increased elevation for a richer look
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                          20,
+                        ), // Even more rounded corners
                       ),
+                      shadowColor: Colors.black.withOpacity(
+                        0.15,
+                      ), // More pronounced shadow
                       child: Padding(
-                        padding: const EdgeInsets.all(8.0),
+                        padding: const EdgeInsets.all(
+                          16.0,
+                        ), // Increased padding
                         child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
+                              borderRadius: BorderRadius.circular(
+                                15.0,
+                              ), // Rounded image corners
                               child:
                                   (cartItem.itemImageUrl != null &&
                                           cartItem.itemImageUrl!.isNotEmpty)
                                       ? Image.network(
                                         cartItem.itemImageUrl!,
-                                        width: 80,
-                                        height: 80,
+                                        width: 90,
+                                        height: 90,
                                         fit: BoxFit.cover,
                                         errorBuilder:
                                             (context, error, stackTrace) =>
                                                 Container(
-                                                  width: 80,
-                                                  height: 80,
+                                                  width: 90,
+                                                  height: 90,
                                                   decoration: BoxDecoration(
-                                                    color: Colors.blueGrey[50],
+                                                    color: Colors.grey.shade200,
                                                     borderRadius:
                                                         BorderRadius.circular(
-                                                          8.0,
+                                                          15.0,
                                                         ),
                                                   ),
-                                                  child: const Icon(
-                                                    Icons.image_not_supported,
-                                                    color: Colors.grey,
+                                                  child: Icon(
+                                                    Icons.broken_image,
+                                                    color: Colors.grey.shade400,
+                                                    size: 40,
                                                   ),
                                                 ),
                                       )
                                       : Container(
-                                        width: 80,
-                                        height: 80,
+                                        width: 90,
+                                        height: 90,
                                         decoration: BoxDecoration(
-                                          color: Colors.blueGrey[50],
+                                          color: Colors.grey.shade200,
                                           borderRadius: BorderRadius.circular(
-                                            8.0,
+                                            15.0,
                                           ),
                                         ),
-                                        child: const Icon(
-                                          Icons.shopping_cart,
-                                          color: Colors.blueGrey,
+                                        child: Icon(
+                                          Icons.shopping_bag_outlined,
+                                          color: Colors.grey.shade400,
+                                          size: 40,
                                         ),
                                       ),
                             ),
-                            const SizedBox(width: 12),
+                            const SizedBox(width: 18), // Increased spacing
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,54 +241,79 @@ class _CartPageState extends State<CartPage> {
                                     cartItem.itemName,
                                     style: const TextStyle(
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
+                                      fontSize: 18,
+                                      color: Colors.black87,
                                     ),
-                                    maxLines: 1,
+                                    maxLines:
+                                        2, // Allow more lines for item name
                                     overflow: TextOverflow.ellipsis,
                                   ),
+                                  const SizedBox(height: 6),
                                   Text(
                                     'RM${cartItem.itemPrice.toStringAsFixed(2)} / unit',
                                     style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 13,
+                                      color: Colors.grey.shade600,
+                                      fontSize: 14,
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 12),
                                   Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.remove_circle_outline,
-                                        ),
-                                        onPressed:
-                                            () => viewModel
-                                                .updateCartItemQuantity(
-                                                  cartItem.itemId,
-                                                  cartItem.quantity - 1,
-                                                ),
+                                      Row(
+                                        children: [
+                                          _QuantityButton(
+                                            icon: Icons.remove,
+                                            onPressed:
+                                                cartItem.quantity > 1
+                                                    ? () => viewModel
+                                                        .updateCartItemQuantity(
+                                                          cartItem.itemId,
+                                                          cartItem.quantity - 1,
+                                                        )
+                                                    : null, // Disable when quantity is 1
+                                            buttonColor:
+                                                buttonColor, // Pass new color
+                                          ),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 10.0,
+                                            ), // More padding
+                                            child: Text(
+                                              '${cartItem.quantity}',
+                                              style: const TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.black87,
+                                              ),
+                                            ),
+                                          ),
+                                          _QuantityButton(
+                                            icon: Icons.add,
+                                            onPressed:
+                                                () => viewModel
+                                                    .updateCartItemQuantity(
+                                                      cartItem.itemId,
+                                                      cartItem.quantity + 1,
+                                                    ),
+                                            buttonColor:
+                                                buttonColor, // Pass new color
+                                          ),
+                                        ],
                                       ),
-                                      Text(
-                                        '${cartItem.quantity}',
-                                        style: const TextStyle(fontSize: 16),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.add_circle_outline,
-                                        ),
-                                        onPressed:
-                                            () => viewModel
-                                                .updateCartItemQuantity(
-                                                  cartItem.itemId,
-                                                  cartItem.quantity + 1,
-                                                ),
-                                      ),
-                                      const Spacer(),
-                                      Text(
-                                        'RM${(cartItem.quantity * cartItem.itemPrice).toStringAsFixed(2)}',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: Colors.green,
+                                      // FIX: Wrap the price Text widget with Expanded
+                                      Expanded(
+                                        child: Text(
+                                          'RM${(cartItem.quantity * cartItem.itemPrice).toStringAsFixed(2)}',
+                                          textAlign:
+                                              TextAlign.end, // Align to the end
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16, // Larger total price
+                                            color:
+                                                primaryPink, // Use primary pink for item total
+                                          ),
                                         ),
                                       ),
                                     ],
@@ -210,13 +322,22 @@ class _CartPageState extends State<CartPage> {
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.redAccent,
+                              icon: Icon(
+                                Icons
+                                    .delete_forever, // A more prominent delete icon
+                                color:
+                                    deleteButtonColor, // Custom delete button color
+                                size: 28, // Larger icon
                               ),
-                              onPressed:
-                                  () =>
-                                      viewModel.removeCartItem(cartItem.itemId),
+                              onPressed: () {
+                                // Add a confirmation dialog before deleting for better UX
+                                _showDeleteConfirmationDialog(
+                                  context,
+                                  viewModel,
+                                  cartItem.itemId,
+                                  cartItem.itemName,
+                                );
+                              },
                             ),
                           ],
                         ),
@@ -225,31 +346,53 @@ class _CartPageState extends State<CartPage> {
                   },
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
+              Container(
+                padding: const EdgeInsets.all(
+                  20.0,
+                ), // More padding for bottom section
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(
+                        0.1,
+                      ), // More visible shadow
+                      spreadRadius: 3,
+                      blurRadius: 15,
+                      offset: const Offset(0, -5),
+                    ),
+                  ],
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(30), // More rounded top corners
+                    topRight: Radius.circular(30),
+                  ),
+                ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Subtotal:',
+                        Text(
+                          'Total (${viewModel.cartItems.length} items):',
                           style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
                           ),
                         ),
                         Text(
                           'RM${viewModel.subtotal.toStringAsFixed(2)}',
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 24, // Larger total amount
                             fontWeight: FontWeight.bold,
-                            color: Colors.green,
+                            color:
+                                accentPurple, // Use accent color for grand total
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 25), // More spacing
                     ElevatedButton.icon(
                       onPressed:
                           viewModel.cartItems.isEmpty || viewModel.isLoading
@@ -257,18 +400,31 @@ class _CartPageState extends State<CartPage> {
                               : () {
                                 _showPlaceOrderDialog(context, viewModel);
                               },
-                      icon: const Icon(Icons.shopping_bag_outlined),
+                      icon: const Icon(
+                        Icons.credit_card, // A modern payment icon
+                        color: Colors.white,
+                        size: 26,
+                      ),
                       label: const Text(
                         'Proceed to Checkout',
-                        style: TextStyle(fontSize: 18),
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blueGrey[700],
+                        backgroundColor:
+                            buttonColor, // Use the slightly darker button color
                         foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(50),
+                        minimumSize: const Size.fromHeight(
+                          60,
+                        ), // Even taller button
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(
+                            16,
+                          ), // Rounded button
                         ),
+                        elevation: 8, // Higher elevation for button
                       ),
                     ),
                   ],
@@ -281,55 +437,147 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
+  // --- Place Order Dialog ---
   void _showPlaceOrderDialog(BuildContext context, CartViewModel viewModel) {
-    // <<<--- This line ensures the controller has the latest address from the VM
-    // right before showing the dialog.
+    final Color dialogPrimaryColor = Color.fromARGB(
+      255,
+      255,
+      120,
+      205,
+    ); // Match item list theme
+
     if (viewModel.userAddress != null) {
       _addressController.text = viewModel.userAddress!;
     } else {
-      _addressController.clear(); // Clear if no address
+      _addressController.clear();
     }
 
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Place Order'),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20), // More rounded dialog
+          ),
+          title: Text(
+            'Confirm Your Order',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: dialogPrimaryColor, // Match theme
+            ),
+          ),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller:
-                      _addressController, // <<<--- MUST USE STATE-LEVEL CONTROLLER
-                  decoration: const InputDecoration(
+                  controller: _addressController,
+                  decoration: InputDecoration(
                     labelText: 'Delivery Address',
+                    hintText: 'Enter your full delivery address',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(
+                        12,
+                      ), // Rounded text field
+                      borderSide: BorderSide(
+                        color: dialogPrimaryColor.withOpacity(0.7),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: dialogPrimaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.location_on,
+                      color: dialogPrimaryColor,
+                    ),
+                    alignLabelWithHint: true,
                   ),
+                  maxLines: 3,
+                  minLines: 1,
+                  keyboardType: TextInputType.streetAddress,
                 ),
+                const SizedBox(height: 20),
                 TextField(
-                  controller:
-                      _instructionsController, // <<<--- MUST USE STATE-LEVEL CONTROLLER
-                  decoration: const InputDecoration(
+                  controller: _instructionsController,
+                  decoration: InputDecoration(
                     labelText: 'Delivery Instructions (Optional)',
+                    hintText: 'e.g., "Leave at door", "Call upon arrival"',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: dialogPrimaryColor.withOpacity(0.7),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: dialogPrimaryColor,
+                        width: 2,
+                      ),
+                    ),
+                    prefixIcon: Icon(Icons.notes, color: dialogPrimaryColor),
+                    alignLabelWithHint: true,
                   ),
+                  maxLines: 4,
+                  minLines: 1,
+                  keyboardType: TextInputType.text,
                 ),
               ],
             ),
           ),
+          actionsAlignment: MainAxisAlignment.spaceAround, // Distribute buttons
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.grey.shade700,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Cancel', style: TextStyle(fontSize: 16)),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
               },
             ),
             ElevatedButton(
-              child: const Text('Confirm Order'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor:
+                    dialogPrimaryColor, // Use dialog's primary color
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 25,
+                  vertical: 12,
+                ),
+                elevation: 5,
+              ),
+              child: const Text(
+                'Place Order',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              ),
               onPressed: () async {
                 if (_addressController.text.trim().isEmpty) {
                   ScaffoldMessenger.of(dialogContext).showSnackBar(
                     const SnackBar(
-                      content: Text('Delivery address cannot be empty!'),
+                      content: Text(
+                        'Delivery address cannot be empty!',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                      backgroundColor: Colors.redAccent,
+                      behavior: SnackBarBehavior.floating,
+                      duration: Duration(seconds: 2),
                     ),
                   );
                   return;
@@ -346,15 +594,24 @@ class _CartPageState extends State<CartPage> {
                     SnackBar(
                       content: Text(
                         'Order ${order.id.substring(0, 6)}... placed successfully!',
+                        style: const TextStyle(color: Colors.white),
                       ),
+                      backgroundColor: Colors.green.shade600,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 3),
                     ),
                   );
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text(
-                        viewModel.errorMessage ?? 'Failed to place order.',
+                        viewModel.errorMessage ??
+                            'Failed to place order. Please try again.',
+                        style: const TextStyle(color: Colors.white),
                       ),
+                      backgroundColor: Colors.red.shade600,
+                      behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 4),
                     ),
                   );
                 }
@@ -363,6 +620,105 @@ class _CartPageState extends State<CartPage> {
           ],
         );
       },
+    );
+  }
+
+  // --- Delete Confirmation Dialog ---
+  void _showDeleteConfirmationDialog(
+    BuildContext context,
+    CartViewModel viewModel,
+    String itemId,
+    String itemName,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: const Text(
+            'Remove Item',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+          ),
+          content: Text(
+            'Are you sure you want to remove "$itemName" from your cart?',
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+              },
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: const Text('Remove'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                viewModel.removeCartItem(itemId);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('"$itemName" removed from cart.'),
+                    backgroundColor: Colors.orange.shade600,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// A helper widget for consistent quantity buttons
+class _QuantityButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final Color buttonColor; // Added to pass color dynamically
+
+  const _QuantityButton({
+    required this.icon,
+    this.onPressed,
+    required this.buttonColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 30, // Slightly larger button
+      height: 30,
+      decoration: BoxDecoration(
+        color:
+            onPressed != null
+                ? buttonColor.withOpacity(
+                  0.15,
+                ) // Use provided color with opacity
+                : Colors.grey.shade200,
+        shape: BoxShape.circle,
+        border: Border.all(
+          color:
+              onPressed != null
+                  ? buttonColor.withOpacity(0.5)
+                  : Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: IconButton(
+        icon: Icon(icon, size: 22), // Larger icon
+        color: onPressed != null ? buttonColor : Colors.grey.shade400,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero, // Remove default padding
+        splashRadius: 20, // Nice ripple effect
+      ),
     );
   }
 }
