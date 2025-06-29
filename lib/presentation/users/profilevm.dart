@@ -135,12 +135,13 @@ class ProfileViewModel extends ChangeNotifier {
   /// Updates the user's profile in Firestore.
   Future<void> updateProfile({
     String? username,
+    String? fullName,
     String? address,
     String? phoneNumber,
     String? profileImageUrl,
   }) async {
     appLogger.i(
-      'ProfileViewModel: updateProfile received username: $username, address: $address, phoneNumber: $phoneNumber, URL: $profileImageUrl',
+      'ProfileViewModel: updateProfile received username: $username,fullName:$fullName address: $address, phoneNumber: $phoneNumber, URL: $profileImageUrl',
     );
     if (_currentUserProfile == null) {
       _errorMessage = 'No user profile to update.';
