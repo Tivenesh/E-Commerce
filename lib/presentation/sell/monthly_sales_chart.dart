@@ -4,11 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
-import '../../data/models/order_item.dart'; // Corrected path
-import '../../data/services/order_item_repo.dart'; // Corrected path
+import '../../data/models/order_item.dart'; // Assuming this path is correct
+import '../../data/services/order_item_repo.dart'; // Assuming this path is correct
 
 class MonthlySalesChart extends StatefulWidget {
-  final String sellerId; // Assuming you want to filter by sellerId
+  final String sellerId;
   const MonthlySalesChart({super.key, required this.sellerId});
 
   @override
@@ -16,15 +16,34 @@ class MonthlySalesChart extends StatefulWidget {
 }
 
 class _MonthlySalesChartState extends State<MonthlySalesChart> {
+  // Map to store unique item names and their assigned colors
+  final Map<String, Color> _itemColorMap = {};
+  int _colorIndex = 0;
+  final List<Color> _chartColors = [
+    Colors.blueAccent,
+    Colors.orangeAccent,
+    Colors.greenAccent,
+    Colors.redAccent,
+    Colors.purpleAccent,
+    Colors.tealAccent,
+    Colors.deepOrangeAccent,
+    Colors.indigoAccent,
+  ];
+
+  Color _getItemColor(String itemName) {
+    if (!_itemColorMap.containsKey(itemName)) {
+      _itemColorMap[itemName] = _chartColors[_colorIndex % _chartColors.length];
+      _colorIndex++;
+    }
+    return _itemColorMap[itemName]!;
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Access the OrderItemRepo using Provider
     final orderItemRepo = Provider.of<OrderItemRepo>(context);
 
     return StreamBuilder<List<OrderItem>>(
-      stream: orderItemRepo.getOrdersBySeller(
-        widget.sellerId,
-      ), // Fetch orders for the specific seller
+      stream: orderItemRepo.getOrdersBySeller(widget.sellerId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -36,66 +55,91 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
           return const Center(child: Text('No sales data available.'));
         }
 
-        // Process the data to aggregate sales by month
-        Map<String, double> monthlySales = {};
+        // Process data to aggregate sales by month and item type
+        // Map: MonthYear -> ItemName -> TotalSales
+        Map<String, Map<String, double>> monthlySalesByItem = {};
         for (var order in snapshot.data!) {
-          // Only consider delivered or confirmed orders for sales
           if (order.status == OrderStatus.delivered ||
               order.status == OrderStatus.confirmed) {
             DateTime orderDateTime = order.orderDate.toDate();
-            // Use 'MMM yyyy' for month-year format
-            String monthYear = DateFormat(
-              'MMM yyyy',
-            ).format(orderDateTime); // e.g., "Jan 2023"
-            monthlySales.update(
-              monthYear,
-              (value) => value + order.totalAmount,
-              ifAbsent: () => order.totalAmount,
-            );
+            String monthYear = DateFormat('MMMyyyy').format(orderDateTime);
+
+            for (var cartItem in order.items) {
+              final String itemName = cartItem.itemName;
+              final double itemTotal = cartItem.quantity * cartItem.itemPrice;
+
+              monthlySalesByItem.update(monthYear, (monthMap) {
+                monthMap.update(
+                  itemName,
+                  (value) => value + itemTotal,
+                  ifAbsent: () => itemTotal,
+                );
+                return monthMap;
+              }, ifAbsent: () => {itemName: itemTotal});
+            }
           }
         }
 
-        // Sort months chronologically for proper chart display
         List<String> sortedMonths =
-            monthlySales.keys.toList()..sort((a, b) {
-              // Parse using 'MMM yyyy'
-              DateTime dateA = DateFormat('MMM yyyy').parse(a);
-              DateTime dateB = DateFormat('MMM yyyy').parse(b);
+            monthlySalesByItem.keys.toList()..sort((a, b) {
+              DateTime dateA = DateFormat('MMMyyyy').parse(a);
+              DateTime dateB = DateFormat('MMMyyyy').parse(b);
               return dateA.compareTo(dateB);
             });
 
         List<BarChartGroupData> barGroups = [];
         List<String> bottomTitles = [];
-
         double maxY = 0;
+
         for (int i = 0; i < sortedMonths.length; i++) {
           String month = sortedMonths[i];
-          double salesAmount = monthlySales[month] ?? 0.0;
+          Map<String, double> salesForMonth = monthlySalesByItem[month] ?? {};
+
+          List<BarChartRodStackItem> rodStackItems = [];
+          double stackValue = 0;
+          double monthTotalSales = 0;
+
+          // Sort items for consistent stacking order (optional, but good practice)
+          List<String> sortedItems = salesForMonth.keys.toList()..sort();
+
+          for (var itemName in sortedItems) {
+            double salesAmount = salesForMonth[itemName] ?? 0.0;
+            if (salesAmount > 0) {
+              rodStackItems.add(
+                BarChartRodStackItem(
+                  stackValue,
+                  stackValue + salesAmount,
+                  _getItemColor(itemName),
+                ),
+              );
+              stackValue += salesAmount;
+            }
+          }
+          monthTotalSales = stackValue; // The total height of the stacked bar
+
           barGroups.add(
             BarChartGroupData(
               x: i,
               barRods: [
                 BarChartRodData(
-                  toY: salesAmount,
-                  color: Colors.blueAccent,
-                  width: 16,
+                  toY: monthTotalSales,
+                  width: 20, // Increased width for better visibility
                   borderRadius: const BorderRadius.all(Radius.circular(4)),
+                  rodStackItems: rodStackItems,
                 ),
               ],
             ),
           );
-          // Use 'MMM' for bottom titles (e.g., "Jan", "Feb")
           bottomTitles.add(
-            DateFormat('MMM').format(DateFormat('MMM yyyy').parse(month)),
+            DateFormat('MMM').format(DateFormat('MMMyyyy').parse(month)),
           );
-          if (salesAmount > maxY) {
-            maxY = salesAmount;
+          if (monthTotalSales > maxY) {
+            maxY = monthTotalSales;
           }
         }
 
-        // Add some padding to maxY for better chart visualization
         maxY = maxY * 1.2;
-        if (maxY < 100) maxY = 100; // Ensure a minimum Y-axis height
+        if (maxY < 100) maxY = 100;
 
         return Card(
           elevation: 4,
@@ -109,7 +153,7 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Monthly Sales Overview',
+                  'Monthly Sales by Item Type',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -159,7 +203,7 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
                             showTitles: true,
                             getTitlesWidget: (value, meta) {
                               return Text(
-                                '\RM${value.toInt()}',
+                                'RM${value.toInt()}',
                                 style: const TextStyle(fontSize: 10),
                               );
                             },
@@ -176,33 +220,88 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
                       alignment: BarChartAlignment.spaceAround,
                       groupsSpace: 12,
                       barTouchData: BarTouchData(
+                        // This property provides the tooltip data
                         touchTooltipData: BarTouchTooltipData(
-                          // tooltipBgColor: Colors.blueGrey,  // Customizing the tooltip background color
+                          // tooltipBgColor: Colors.blueGrey, // Customize tooltip background
                           getTooltipItem: (group, groupIndex, rod, rodIndex) {
                             String month = sortedMonths[group.x.toInt()];
+                            Map<String, double> salesForMonth =
+                                monthlySalesByItem[month] ?? {};
+                            List<TextSpan> children = [];
+                            double totalMonthSales = 0;
+
+                            // Sort items for consistent display in tooltip
+                            List<String> sortedTooltipItems =
+                                salesForMonth.keys.toList()..sort();
+
+                            for (var itemName in sortedTooltipItems) {
+                              double sales = salesForMonth[itemName] ?? 0.0;
+                              totalMonthSales += sales;
+                              children.add(
+                                TextSpan(
+                                  text:
+                                      '${itemName}: RM${sales.toStringAsFixed(2)}\n',
+                                  style: TextStyle(
+                                    color: _getItemColor(itemName),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              );
+                            }
+
                             return BarTooltipItem(
-                              '${month}\n',
+                              // Display month and total sales at the top of the tooltip
+                              '${month}\nTotal: RM${totalMonthSales.toStringAsFixed(2)}\n',
                               const TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
                               ),
-                              children: <TextSpan>[
-                                TextSpan(
-                                  text: '\RM${rod.toY.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    color: Colors.yellow,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
+                              children:
+                                  children, // Add individual item sales as children
                             );
                           },
                         ),
+                        // To make the tooltip appear only on touch (and not hover/initial render),
+                        // we control which bars show tooltips by setting the 'showingTooltipIndicators'
+                        // on the BarChartGroupData only when a bar is touched.
+                        // However, a simpler way for pure "on-tap" is to let getTooltipItem handle it,
+                        // and for "hover", it will automatically appear. If you strictly only want
+                        // on-tap, the previous approach with the custom Card was more explicit.
+                        // For a clean solution with getTooltipItem, the tooltip will appear on tap
+                        // and also on hover (if using mouse/desktop).
+                        // If strict "only on tap, then disappear when tapping elsewhere" is needed,
+                        // the previous custom card approach with state management is better.
+                        // For the current structure with `getTooltipItem`, it functions more like a typical tooltip.
                       ),
                     ),
                   ),
+                ),
+                const SizedBox(height: 16),
+                // Legend
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 5,
+                  alignment: WrapAlignment.center,
+                  children:
+                      _itemColorMap.entries.map((entry) {
+                        return Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 16,
+                              height: 16,
+                              color: entry.value,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              entry.key,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ],
+                        );
+                      }).toList(),
                 ),
               ],
             ),
