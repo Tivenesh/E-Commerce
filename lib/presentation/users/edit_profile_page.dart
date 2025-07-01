@@ -1,16 +1,21 @@
+// lib/presentation/users/edit_profile_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:e_commerce/utils/logger.dart'; // Import logger
 import 'package:e_commerce/presentation/users/profilevm.dart';
 import '../../data/services/supabase_image_uploader.dart';
 
-class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+// Renamed from ProfilePage to EditProfilePage
+class EditProfilePage extends StatefulWidget {
+  const EditProfilePage({super.key}); // Use super.key
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<EditProfilePage> createState() => _EditProfilePageState(); // Renamed state class
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _EditProfilePageState extends State<EditProfilePage> {
+  // Renamed state class
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
@@ -18,17 +23,23 @@ class _ProfilePageState extends State<ProfilePage> {
   final SupabaseImageUploader _imageUploader = SupabaseImageUploader();
 
   // Local state to manage image upload loading
-  bool _isImageUploading = false;
+  bool _isImageUploading = false; // Keep this local state here
+
+  // Store the ProfileViewModel instance
+  late ProfileViewModel _profileViewModel; // Declare a late variable
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-      _initializeControllers(viewModel);
-      viewModel.addListener(_updateControllers);
-      // Ensure profile data is fetched when the page loads
-      viewModel.fetchUserProfile();
+      _profileViewModel = Provider.of<ProfileViewModel>(
+        context,
+        listen: false,
+      ); // Initialize here
+      _initializeControllers(_profileViewModel);
+      _profileViewModel.addListener(_updateControllers);
+      // Ensure profile data is fetched for editing if not already loaded
+      _profileViewModel.fetchUserProfile();
     });
   }
 
@@ -42,8 +53,12 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _updateControllers() {
+    // Check if the widget is still mounted before accessing context or viewModel
+    if (!mounted) return;
+
     final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
     if (viewModel.currentUserProfile != null) {
+      // Only update if the text in controller is different from ViewModel
       if (_usernameController.text != viewModel.currentUserProfile!.username) {
         _usernameController.text = viewModel.currentUserProfile!.username;
       }
@@ -68,21 +83,31 @@ class _ProfilePageState extends State<ProfilePage> {
       final url = await _imageUploader.pickAndUploadImage();
 
       if (url != null) {
-        final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-        // This will set viewModel.isLoading internally if updateProfile does so
-        await viewModel.updateProfile(profileImageUrl: url);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile image updated successfully!')),
-        );
+        // Use the stored _profileViewModel instead of Provider.of(context)
+        await _profileViewModel.updateProfile(profileImageUrl: url);
+        // It's generally safe to use context after an await if the widget is still mounted.
+        // However, a mounted check can be added for robustness.
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile image updated successfully!'),
+            ),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image upload cancelled or failed.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image upload cancelled or failed.')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error uploading image: $e')));
+      appLogger.e('Error uploading image: $e'); // Use logger
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error uploading image: $e')));
+      }
     } finally {
       setState(() {
         _isImageUploading = false; // End local loading
@@ -91,33 +116,37 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _saveProfile() async {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
+    // Use the stored _profileViewModel instead of Provider.of(context)
     final String? currentImageUrlInViewModel =
-        viewModel.currentUserProfile?.profileImageUrl;
+        _profileViewModel.currentUserProfile?.profileImageUrl;
 
-    // viewModel.updateProfile will handle its own loading state.
-    await viewModel.updateProfile(
+    await _profileViewModel.updateProfile(
       username: _usernameController.text.trim(),
       address: _addressController.text.trim(),
       phoneNumber: _phoneNumberController.text.trim(),
       profileImageUrl: currentImageUrlInViewModel,
     );
 
-    if (viewModel.errorMessage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated successfully!')),
-      );
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(viewModel.errorMessage!)));
+    if (mounted) {
+      // Check if widget is mounted before showing SnackBar or popping
+      if (_profileViewModel.errorMessage == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile updated successfully!')),
+        );
+        // Pop back to the display page after successful save
+        Navigator.of(context).pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(_profileViewModel.errorMessage!)),
+        );
+      }
     }
   }
 
   @override
   void dispose() {
-    final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-    viewModel.removeListener(_updateControllers);
+    // Use the stored _profileViewModel instance directly
+    _profileViewModel.removeListener(_updateControllers);
     _usernameController.dispose();
     _addressController.dispose();
     _phoneNumberController.dispose();
@@ -130,22 +159,24 @@ class _ProfilePageState extends State<ProfilePage> {
       backgroundColor: const Color(0xFFF9F9F9), // Very light grey background
       appBar: AppBar(
         title: const Text(
-          'My Profile',
+          'Edit Profile', // Changed title to 'Edit Profile'
           style: TextStyle(
-            color: Color(0xFF333333), // Darker grey for primary text
-            fontWeight: FontWeight.bold, // Bolder title
+            color: Color(0xFF333333),
+            fontWeight: FontWeight.bold,
             fontSize: 20,
           ),
         ),
         centerTitle: true,
-        elevation: 0, // Flat app bar
-        backgroundColor: const Color(0xFFFFFFFF), // White app bar
-        iconTheme: const IconThemeData(
-          color: Color(0xFF555555),
-        ), // Medium grey icons
-        // Add a subtle bottom border to the app bar
+        elevation: 0,
+        backgroundColor: const Color(0xFFFFFFFF),
+        iconTheme: const IconThemeData(color: Color(0xFF555555)),
         shape: Border(
-          bottom: BorderSide(color: Colors.grey.withOpacity(0.2), width: 1),
+          bottom: BorderSide(
+            color: Colors.grey.withAlpha(
+              (255 * 0.2).round(),
+            ), // Fix deprecated withOpacity
+            width: 1,
+          ),
         ),
       ),
       body: Consumer<ProfileViewModel>(
@@ -160,9 +191,7 @@ class _ProfilePageState extends State<ProfilePage> {
             // Show full screen loader only if profile data hasn't loaded yet
             return const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  Color(0xFF6200EE),
-                ), // A common app primary color
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6200EE)),
               ),
             );
           }
@@ -215,12 +244,7 @@ class _ProfilePageState extends State<ProfilePage> {
           return Stack(
             children: [
               SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(
-                  24.0,
-                  32.0,
-                  24.0,
-                  24.0,
-                ), // More top padding
+                padding: const EdgeInsets.fromLTRB(24.0, 32.0, 24.0, 24.0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -233,10 +257,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         child: Stack(
                           children: [
                             CircleAvatar(
-                              radius: 75, // Slightly larger avatar
-                              backgroundColor: const Color(
-                                0xFFE0E0E0,
-                              ), // Lighter grey for placeholder
+                              radius: 75,
+                              backgroundColor: const Color(0xFFE0E0E0),
                               backgroundImage:
                                   currentProfileImageUrl != null &&
                                           currentProfileImageUrl.isNotEmpty
@@ -245,13 +267,10 @@ class _ProfilePageState extends State<ProfilePage> {
                               child:
                                   (currentProfileImageUrl == null ||
                                           currentProfileImageUrl.isEmpty)
-                                      ? Icon(
-                                        Icons
-                                            .person_rounded, // Filled icon for stronger presence
+                                      ? const Icon(
+                                        Icons.person_rounded,
                                         size: 75,
-                                        color: const Color(
-                                          0xFFB0B0B0,
-                                        ), // Softer grey for icon
+                                        color: Color(0xFFB0B0B0),
                                       )
                                       : null,
                             ),
@@ -276,9 +295,7 @@ class _ProfilePageState extends State<ProfilePage> {
                               right: 0,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: const Color(
-                                    0xFF6200EE,
-                                  ), // Use primary brand color
+                                  color: const Color(0xFF6200EE),
                                   shape: BoxShape.circle,
                                   border: Border.all(
                                     color: Colors.white,
@@ -286,9 +303,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                   ),
                                 ),
                                 child: const Padding(
-                                  padding: EdgeInsets.all(
-                                    8.0,
-                                  ), // Slightly larger tap area
+                                  padding: EdgeInsets.all(8.0),
                                   child: Icon(
                                     Icons.camera_alt,
                                     color: Colors.white,
@@ -301,16 +316,14 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(
-                      height: 40,
-                    ), // More spacing for visual breathing room
+                    const SizedBox(height: 40),
 
                     _buildTextField(
                       _usernameController,
                       'Username',
                       Icons.person_outline,
                     ),
-                    const SizedBox(height: 20), // Consistent vertical spacing
+                    const SizedBox(height: 20),
                     _buildTextField(
                       _addressController,
                       'Address',
@@ -324,9 +337,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       TextInputType.phone,
                     ),
 
-                    const SizedBox(
-                      height: 40,
-                    ), // Increased spacing before button
+                    const SizedBox(height: 40),
 
                     ElevatedButton(
                       // Disable if ViewModel is currently loading (e.g., saving) or if image is uploading
@@ -335,32 +346,23 @@ class _ProfilePageState extends State<ProfilePage> {
                               ? null
                               : _saveProfile,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(
-                          0xFF6200EE,
-                        ), // Use primary brand color
+                        backgroundColor: const Color(0xFF6200EE),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 18,
-                        ), // Taller button
+                        padding: const EdgeInsets.symmetric(vertical: 18),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            12,
-                          ), // Slightly more rounded for a friendly feel
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        elevation: 4, // Subtle shadow for depth
-                        shadowColor: const Color(
-                          0xFF6200EE,
-                        ).withOpacity(0.3), // Shadow matching button color
+                        elevation: 4,
+                        shadowColor: const Color(0xFF6200EE).withOpacity(0.3),
                       ),
                       child:
                           (viewModel.isLoading || _isImageUploading)
                               ? const SizedBox(
-                                width: 24, // Larger loader
+                                width: 24,
                                 height: 24,
                                 child: CircularProgressIndicator(
                                   color: Colors.white,
-                                  strokeWidth:
-                                      2.5, // Slightly thicker progress indicator
+                                  strokeWidth: 2.5,
                                 ),
                               )
                               : const Text(
@@ -368,21 +370,18 @@ class _ProfilePageState extends State<ProfilePage> {
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
-                                ), // Bolder text
+                                ),
                               ),
                     ),
-                    const SizedBox(height: 30), // Bottom padding
+                    const SizedBox(height: 30),
                   ],
                 ),
               ),
               // Conditional overlay for general loading (e.g., saving other profile details)
-              if (showOverallLoadingOverlay &&
-                  !_isImageUploading) // Don't show if only image is uploading
+              if (showOverallLoadingOverlay && !_isImageUploading)
                 Positioned.fill(
                   child: Container(
-                    color: Colors.black.withOpacity(
-                      0.3,
-                    ), // Semi-transparent overlay
+                    color: Colors.black.withOpacity(0.3),
                     child: const Center(
                       child: CircularProgressIndicator(
                         valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -407,46 +406,37 @@ class _ProfilePageState extends State<ProfilePage> {
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: TextStyle(
-          color: const Color(0xFF888888), // Medium grey for labels
+        labelStyle: const TextStyle(
+          color: Color(0xFF888888),
           fontWeight: FontWeight.w500,
         ),
-        floatingLabelBehavior:
-            FloatingLabelBehavior.auto, // Label moves above on focus
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none, // Still no default border
+          borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: const Color(0xFFFFFFFF), // White fill for text fields
-        prefixIcon: Icon(
-          icon,
-          color: const Color(0xFF888888),
-        ), // Match label color
+        fillColor: const Color(0xFFFFFFFF),
+        prefixIcon: Icon(icon, color: const Color(0xFF888888)),
         contentPadding: const EdgeInsets.symmetric(
           vertical: 16,
           horizontal: 16,
-        ), // More internal padding
+        ),
         enabledBorder: OutlineInputBorder(
-          // Subtle border when enabled
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
+          borderSide: BorderSide(
+            color: Colors.grey.withAlpha((255 * 0.3).round()),
+            width: 1,
+          ), // Fix deprecated withOpacity
         ),
         focusedBorder: OutlineInputBorder(
-          // Stronger border on focus
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: Color(0xFF6200EE),
-            width: 2,
-          ), // Brand color border on focus
+          borderSide: const BorderSide(color: Color(0xFF6200EE), width: 2),
         ),
       ),
       keyboardType: keyboardType,
-      style: const TextStyle(
-        color: Color(0xFF333333), // Dark text for input
-        fontSize: 16,
-      ),
-      cursorColor: const Color(0xFF6200EE), // Cursor matches brand color
+      style: const TextStyle(color: Color(0xFF333333), fontSize: 16),
+      cursorColor: const Color(0xFF6200EE),
     );
   }
 }

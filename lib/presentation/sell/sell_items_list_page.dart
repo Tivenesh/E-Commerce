@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-// Assuming these paths are correct for your project structure
-import 'package:e_commerce/presentation/sell/sellitemview.dart'; // Your ViewModel
+import 'package:e_commerce/presentation/sell/sellitemview.dart';
 import 'package:e_commerce/presentation/sell/sell_item_form_page.dart';
-import 'package:e_commerce/data/models/item.dart'; // For Item and ItemType
-import 'package:e_commerce/data/models/order_item.dart'; // Your OrderItem and OrderStatus
-import 'package:e_commerce/data/models/user.dart'; // Import your User model
+import 'package:e_commerce/data/models/item.dart';
+import 'package:e_commerce/data/models/order_item.dart';
+import 'package:e_commerce/data/models/user.dart' as app_user;
+import 'package:e_commerce/presentation/users/profilevm.dart';
+import 'package:e_commerce/presentation/sell/seller_registration_form.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class SellItemsListPage extends StatefulWidget {
   const SellItemsListPage({super.key});
@@ -23,14 +24,11 @@ class _SellItemsListPageState extends State<SellItemsListPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
-    // Listen for tab changes to control FAB visibility
     _tabController.addListener(_handleTabSelection);
   }
 
   void _handleTabSelection() {
-    setState(() {
-      // Rebuilds the widget when the tab changes, which affects FAB visibility
-    });
+    setState(() {});
   }
 
   @override
@@ -40,11 +38,31 @@ class _SellItemsListPageState extends State<SellItemsListPage>
     super.dispose();
   }
 
+  /// Checks if the user has completed the required seller profile fields.
+  bool isRegisteredSeller(app_user.User? user) {
+    if (user == null) return false;
+    // We consider a user a "seller" if they have provided an address and phone number.
+    return (user.address?.isNotEmpty ?? false) &&
+        (user.phoneNumber?.isNotEmpty ?? false);
+  }
+
   @override
   Widget build(BuildContext context) {
+    final profileViewModel = context.watch<ProfileViewModel>();
+
+    if (profileViewModel.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // THE GATEKEEPER LOGIC:
+    // If the user is not a registered seller, show the registration form.
+    if (!isRegisteredSeller(profileViewModel.currentUserProfile)) {
+      return const SellerRegistrationForm();
+    }
+
+    // If the check passes, show the seller dashboard.
     return ChangeNotifierProvider(
       create: (context) {
-        // Initialize your SellItemVM and fetch data
         final vm = SellItemVM();
         vm.fetchUserItems();
         vm.fetchMyOrders();
@@ -56,16 +74,16 @@ class _SellItemsListPageState extends State<SellItemsListPage>
             appBar: AppBar(
               title: const Text('Seller Dashboard'),
               bottom: TabBar(
-                controller: _tabController, // Assign the controller
+                controller: _tabController,
                 tabs: const [
                   Tab(text: 'Your Listings'),
                   Tab(text: 'Incoming Order'),
-                  Tab(text: 'Monthly Sale'), // Added Monthly Sale tab
+                  Tab(text: 'Monthly Sale'),
                 ],
               ),
             ),
             body: TabBarView(
-              controller: _tabController, // Assign the controller
+              controller: _tabController,
               children: [
                 // Your Listings Tab Content
                 RefreshIndicator(
@@ -98,7 +116,7 @@ class _SellItemsListPageState extends State<SellItemsListPage>
                           ),
                 ),
 
-                // Incoming Order Tab Content (with color-coded dropdown)
+                // Incoming Order Tab Content
                 RefreshIndicator(
                   onRefresh: vm.fetchMyOrders,
                   child:
@@ -126,10 +144,8 @@ class _SellItemsListPageState extends State<SellItemsListPage>
                 const Center(child: Text('Monthly Sale Content')),
               ],
             ),
-            // Conditionally show the FloatingActionButton
             floatingActionButton:
-                _tabController.index ==
-                        0 // FAB only visible on the first tab
+                _tabController.index == 0
                     ? FloatingActionButton(
                       onPressed: () async {
                         final result = await Navigator.push(
@@ -139,18 +155,20 @@ class _SellItemsListPageState extends State<SellItemsListPage>
                           ),
                         );
                         if (result == true) {
-                          vm.fetchUserItems(); // Refresh items if new item added
+                          vm.fetchUserItems();
                         }
                       },
                       child: const Icon(Icons.add),
                     )
-                    : null, // Set to null to hide the FAB on other tabs
+                    : null,
           );
         },
       ),
     );
   }
 }
+
+// --- Card Widgets for Listings and Orders ---
 
 // Card for displaying User's Listed Items
 class _UserItemCard extends StatelessWidget {
@@ -168,7 +186,6 @@ class _UserItemCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Display item image or a placeholder
             ClipRRect(
               borderRadius: BorderRadius.circular(8.0),
               child:
@@ -179,10 +196,8 @@ class _UserItemCard extends StatelessWidget {
                         height: 80,
                         fit: BoxFit.cover,
                         errorBuilder:
-                            (context, error, stackTrace) => const Icon(
-                              Icons.broken_image,
-                              size: 80,
-                            ), // Error placeholder
+                            (context, error, stackTrace) =>
+                                const Icon(Icons.broken_image, size: 80),
                       )
                       : Container(
                         width: 80,
@@ -234,7 +249,6 @@ class _UserItemCard extends StatelessWidget {
             ),
             Column(
               children: [
-                // Edit Button
                 IconButton(
                   icon: const Icon(Icons.edit, color: Colors.blue),
                   onPressed: () async {
@@ -247,11 +261,10 @@ class _UserItemCard extends StatelessWidget {
                       ),
                     );
                     if (result == true) {
-                      vm.fetchUserItems(); // Refresh items after editing
+                      vm.fetchUserItems();
                     }
                   },
                 ),
-                // Delete Button
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),
                   onPressed: () async {
@@ -280,9 +293,7 @@ class _UserItemCard extends StatelessWidget {
                             ],
                           ),
                     );
-
                     if (confirm ?? false) {
-                      // Ensure confirm is not null
                       try {
                         await vm.deleteItem(item.id);
                         if (context.mounted) {
@@ -317,14 +328,13 @@ class _UserItemCard extends StatelessWidget {
   }
 }
 
-// Card for displaying Incoming Orders with color-coded status dropdown
+// Card for displaying Incoming Orders
 class _IncomingOrderCard extends StatelessWidget {
   final OrderItem order;
   final SellItemVM vm;
 
   const _IncomingOrderCard({required this.order, required this.vm});
 
-  // Helper function to get color based on OrderStatus
   Color _getStatusColor(OrderStatus status) {
     switch (status) {
       case OrderStatus.pending:
@@ -354,7 +364,7 @@ class _IncomingOrderCard extends StatelessWidget {
               .doc(buyerId)
               .get();
       if (doc.exists) {
-        final user = User.fromFirestore(doc);
+        final user = app_user.User.fromFirestore(doc);
         return user.username;
       }
       return 'Unknown Buyer';
@@ -366,9 +376,7 @@ class _IncomingOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get the color for the current order status
     final statusColor = _getStatusColor(order.status);
-
     return Card(
       margin: const EdgeInsets.all(8.0),
       child: Padding(
@@ -377,7 +385,7 @@ class _IncomingOrderCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Order #${order.id.substring(0, 6).toUpperCase()}', // Changed format
+              'Order #${order.id.substring(0, 6).toUpperCase()}',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
             FutureBuilder<String>(
@@ -388,9 +396,7 @@ class _IncomingOrderCard extends StatelessWidget {
                 } else if (snapshot.hasError) {
                   return const Text('Buyer: Error');
                 } else {
-                  return Text(
-                    'Buyer: ${snapshot.data}',
-                  ); // Display buyer username
+                  return Text('Buyer: ${snapshot.data}');
                 }
               },
             ),
@@ -416,11 +422,9 @@ class _IncomingOrderCard extends StatelessWidget {
                 ),
                 DropdownButton<OrderStatus>(
                   value: order.status,
-                  // Style the dropdown button's underline with the status color
                   underline: Container(height: 2, color: statusColor),
                   onChanged: (OrderStatus? newStatus) async {
                     if (newStatus != null) {
-                      // Update the order status via the ViewModel
                       await vm.updateOrderStatus(order.id, newStatus);
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -437,7 +441,6 @@ class _IncomingOrderCard extends StatelessWidget {
                       OrderStatus.values.map((status) {
                         return DropdownMenuItem(
                           value: status,
-                          // Apply color to the text within each dropdown item
                           child: Text(
                             status.name.replaceAll('_', ' ').capitalize(),
                             style: TextStyle(color: _getStatusColor(status)),
@@ -454,8 +457,6 @@ class _IncomingOrderCard extends StatelessWidget {
   }
 }
 
-// ------------------- Text Capitalizer Extension -------------------
-// This extension is used to format the enum names for display (e.g., "pending" becomes "Pending")
 extension StringExtension on String {
   String capitalize() {
     if (isEmpty) return this;

@@ -1,20 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart' as firebase_auth; // Alias Firebase Auth's User to avoid conflict
+import 'package:firebase_auth/firebase_auth.dart'
+    as firebase_auth; // Alias Firebase Auth's User to avoid conflict
 
 /// Represents a User in the e-commerce application.
 /// Its `id` property should match the Firebase Authentication UID.
 class User {
   final String id; // This will be the Firebase Auth UID
-  final String? fullName; 
+  final String? fullName;
   final String username;
   final String email;
-  final Timestamp? dateOfBirth; 
+  final Timestamp? dateOfBirth;
   final String? profileImageUrl;
   final String? address;
   final String? phoneNumber;
   final Timestamp createdAt;
   final Timestamp updatedAt;
-  final String? gender;     
+  final String? gender;
 
   User({
     required this.id,
@@ -75,8 +76,11 @@ class User {
     return User(
       id: firebaseUser.uid,
       email: firebaseUser.email ?? 'no-email@example.com',
-      username: firebaseUser.displayName ?? 'New User', // Firebase Auth displayName for username
-      fullName: firebaseUser.displayName, // Often the same as displayName initially
+      username:
+          firebaseUser.displayName ??
+          'New User', // Firebase Auth displayName for username
+      fullName:
+          firebaseUser.displayName, // Often the same as displayName initially
       profileImageUrl: firebaseUser.photoURL,
       createdAt: Timestamp.now(), // Set initial creation time
       updatedAt: Timestamp.now(), // Set initial update time
@@ -131,12 +135,6 @@ class User {
           dateOfBirth == other.dateOfBirth);
 
   @override
-  int get hashCode => Object.hash(
-        id,
-        email,
-        username,
-        fullName,
-        gender,
-        dateOfBirth,
-      );
+  int get hashCode =>
+      Object.hash(id, email, username, fullName, gender, dateOfBirth);
 }
