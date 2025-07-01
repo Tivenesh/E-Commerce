@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:provider/provider.dart'; // This needs to be correctly resolved by your environment
 import 'package:e_commerce/presentation/sell/sellitemview.dart';
 import 'package:e_commerce/presentation/sell/sell_item_form_page.dart';
 import 'package:e_commerce/data/models/item.dart';
@@ -8,6 +8,8 @@ import 'package:e_commerce/data/models/user.dart' as app_user;
 import 'package:e_commerce/presentation/users/profilevm.dart';
 import 'package:e_commerce/presentation/sell/seller_registration_form.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:e_commerce/presentation/sell/monthly_sales_chart.dart'; // Import your chart widget
+import 'package:e_commerce/data/services/order_item_repo.dart'; // Import OrderItemRepo
 
 class SellItemsListPage extends StatefulWidget {
   const SellItemsListPage({super.key});
@@ -60,15 +62,32 @@ class _SellItemsListPageState extends State<SellItemsListPage>
       return const SellerRegistrationForm();
     }
 
+    // Corrected: Use .id instead of .uid for your custom User model
+    final String? currentSellerId =
+        profileViewModel.currentUserProfile?.id; // Corrected line
+
+    if (currentSellerId == null) {
+      return const Center(child: Text('Seller ID not available.'));
+    }
+
     // If the check passes, show the seller dashboard.
-    return ChangeNotifierProvider(
-      create: (context) {
-        final vm = SellItemVM();
-        vm.fetchUserItems();
-        vm.fetchMyOrders();
-        return vm;
-      },
+    return MultiProvider(
+      // Correct usage of MultiProvider
+      providers: [
+        ChangeNotifierProvider(
+          // Correct usage of ChangeNotifierProvider
+          create: (context) {
+            final vm = SellItemVM();
+            vm.fetchUserItems();
+            vm.fetchMyOrders();
+            return vm;
+          },
+        ),
+        // Provide OrderItemRepo here for MonthlySalesChart
+        Provider<OrderItemRepo>(create: (context) => OrderItemRepo()),
+      ],
       child: Consumer<SellItemVM>(
+        // Correct usage of Consumer
         builder: (context, vm, child) {
           return Scaffold(
             appBar: AppBar(
@@ -140,8 +159,10 @@ class _SellItemsListPageState extends State<SellItemsListPage>
                           ),
                 ),
 
-                // Monthly Sale Tab Content
-                const Center(child: Text('Monthly Sale Content')),
+                // Monthly Sale Tab Content - This will display your chart
+                MonthlySalesChart(
+                  sellerId: currentSellerId,
+                ), // Displaying the chart here
               ],
             ),
             floatingActionButton:
