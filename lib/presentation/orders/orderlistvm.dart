@@ -10,6 +10,9 @@ import 'package:e_commerce/data/services/firebase_auth_service.dart'; // New: Au
 
 /// ViewModel for the user's order history screen.
 /// Displays orders made by the current authenticated buyer.
+// TODO: This ViewModel currently fetches orders for the *buyer*.
+// For the seller's sales chart, it needs to fetch orders where the current user is the *seller*.
+// Adjust `_listenToOrders` accordingly.
 class OrderListViewModel extends ChangeNotifier {
   final OrderItemRepo _orderRepository;
   final FirebaseAuthService _firebaseAuthService; // New: Auth Service Field
@@ -47,6 +50,7 @@ class OrderListViewModel extends ChangeNotifier {
           'OrderListViewModel: Auth state changed - User logged IN: ${user.uid}',
         );
         // User logged in, set up subscription for their orders
+        // IMPORTANT: Change this to getOrdersBySeller if this ViewModel is intended for the seller's view
         _listenToOrders(user.uid);
       } else {
         appLogger.d(
@@ -70,6 +74,7 @@ class OrderListViewModel extends ChangeNotifier {
       appLogger.d(
         'OrderListViewModel: Initial check - User already logged in: ${initialUser.uid}. Fetching data.',
       );
+      // IMPORTANT: Change this to getOrdersBySeller if this ViewModel is intended for the seller's view
       _listenToOrders(initialUser.uid);
     } else {
       appLogger.d('OrderListViewModel: Initial check - No user logged in.');
@@ -80,14 +85,19 @@ class OrderListViewModel extends ChangeNotifier {
   }
 
   /// Starts listening to real-time order changes for the given buyer.
-  void _listenToOrders(String buyerId) {
+  // TODO: Rename this method or create a new one if this ViewModel will serve both buyers and sellers.
+  void _listenToOrders(String userId) {
+    // Renamed parameter from buyerId to userId for clarity
     _ordersStreamSubscription?.cancel(); // Cancel previous subscription if any
     appLogger.d(
-      'OrderListViewModel: Subscribing to orders for buyerId: $buyerId',
+      'OrderListViewModel: Subscribing to orders for userId: $userId',
     );
 
+    // THIS IS THE LINE TO CHANGE FOR SELLER'S VIEW
     _ordersStreamSubscription = _orderRepository
-        .getOrdersByBuyer(buyerId)
+        .getOrdersBySeller(
+          userId,
+        ) // Changed from getOrdersByBuyer to getOrdersBySeller
         .listen(
           (orders) {
             _orders = orders;
@@ -103,7 +113,7 @@ class OrderListViewModel extends ChangeNotifier {
             _errorMessage = 'Failed to load orders: ${error.toString()}';
             notifyListeners();
             appLogger.e(
-              'OrderListViewModel: Error fetching orders stream for $buyerId: $error',
+              'OrderListViewModel: Error fetching orders stream for $userId: $error',
               error: error,
               stackTrace: stack,
             );

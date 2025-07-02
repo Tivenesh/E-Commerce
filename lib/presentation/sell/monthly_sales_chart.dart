@@ -153,7 +153,7 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Monthly Sales by Item Type',
+                  'Monthly Sales',
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,

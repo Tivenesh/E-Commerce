@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:e_commerce/presentation/items/item_detail_vm.dart';
 import 'package:e_commerce/data/models/item.dart';
 
+/// The Item Detail Page (View) displays comprehensive information about a single item.
 class ItemDetailPage extends StatefulWidget {
   final String itemId;
 
@@ -28,91 +29,213 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Item Details')),
-      body: Consumer<ItemDetailViewModel>(
-        builder: (context, viewModel, child) {
-          if (viewModel.isLoading && viewModel.item == null) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (viewModel.errorMessage != null) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  viewModel.errorMessage!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red, fontSize: 16),
+      // Enhanced AppBar with a gradient and more prominent title
+      appBar: AppBar(
+        title: const Text(
+          'Item Details',
+          style: TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            letterSpacing: 1.2,
+          ),
+        ),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color.fromARGB(255, 255, 120, 205), Colors.purpleAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 10,
+      ),
+      // Body with a fresh background and animated content
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            // This creates the subtle blue-grey gradient background
+            colors: [Colors.blueGrey[50]!, Colors.blueGrey[100]!],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Consumer<ItemDetailViewModel>(
+          builder: (context, viewModel, child) {
+            if (viewModel.isLoading && viewModel.item == null) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(color: Colors.blueAccent),
+                    SizedBox(height: 16),
+                    Text(
+                      'Fetching item details...',
+                      style: TextStyle(fontSize: 16, color: Colors.blueGrey),
+                    ),
+                  ],
                 ),
-              ),
-            );
-          }
-          final item = viewModel.item;
-          if (item == null) {
-            return const Center(child: Text('Item not available.'));
-          }
-
-          return SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildImageCarousel(item.imageUrls),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
+              );
+            }
+            if (viewModel.errorMessage != null) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text(
-                        item.name,
-                        style: Theme.of(context).textTheme.headlineSmall
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.redAccent,
+                        size: 50,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       Text(
-                        'RM${item.price.toStringAsFixed(2)}',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.headlineMedium?.copyWith(
-                          color: Colors.green[700],
+                        'Oops! ${viewModel.errorMessage!}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Chip(
-                        label: Text(item.category),
-                        backgroundColor: Colors.blueGrey[100],
-                      ),
-                      const SizedBox(height: 16),
-                      if (item.type == ItemType.product)
-                        Text(
-                          'In Stock: ${item.quantity}',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      if (item.type == ItemType.service)
-                        Text(
-                          'Duration: ${item.duration}',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                      const SizedBox(height: 16),
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Description',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        item.description,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(fontSize: 16),
+                      const Text(
+                        'Please try again later.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                     ],
                   ),
                 ),
-              ],
-            ),
-          );
-        },
+              );
+            }
+            final item = viewModel.item;
+            if (item == null) {
+              return const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.sentiment_dissatisfied,
+                      color: Colors.blueGrey,
+                      size: 60,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'Item not found.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 20, color: Colors.blueGrey),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'The item you are looking for might not exist.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildImageCarousel(item.imageUrls),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 28,
+                            color: Colors.blueGrey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'RM${item.price.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 32,
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.blueGrey[100],
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${item.type.toString().split('.').last}: ${item.category}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blueGrey[700],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        if (item.type == ItemType.product)
+                          Text(
+                            'Stock: ${item.quantity}',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  (item.quantity ?? 0) <= 0
+                                      ? Colors.red
+                                      : Colors.green[700],
+                            ),
+                          ),
+                        if (item.type == ItemType.service)
+                          Text(
+                            'Duration: ${item.duration}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blueGrey,
+                            ),
+                          ),
+                        const SizedBox(height: 24),
+                        const Divider(color: Colors.grey),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Description',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                            color: Colors.blueGrey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          item.description,
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[800],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
       bottomNavigationBar: _buildAddToCartButton(),
     );
@@ -122,49 +245,56 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
   Widget _buildImageCarousel(List<String> imageUrls) {
     if (imageUrls.isEmpty) {
       return Container(
-        height: 250,
-        color: Colors.blueGrey[50],
-        child: const Icon(
-          Icons.image_not_supported,
-          size: 80,
-          color: Colors.grey,
+        height: 280,
+        color: Colors.blueGrey[100],
+        child: const Center(
+          child: Icon(
+            Icons.image_not_supported,
+            size: 100,
+            color: Colors.blueGrey,
+          ),
         ),
       );
     }
     return AspectRatio(
-      // Changed SizedBox to AspectRatio
-      aspectRatio: 16 / 14, // You can adjust this ratio as needed
+      aspectRatio: 16 / 9,
       child: PageView.builder(
         itemCount: imageUrls.length,
         itemBuilder: (context, index) {
-          // Here is the image crash fix
-          return Image.network(
-            imageUrls[index],
-            fit: BoxFit.cover,
-            // This errorBuilder prevents the app from crashing if an image fails to load.
-            errorBuilder: (context, error, stackTrace) {
-              return Container(
-                color: Colors.blueGrey[50],
-                child: const Icon(
-                  Icons.broken_image,
-                  size: 80,
-                  color: Colors.grey,
-                ),
-              );
-            },
-            // You can also add a loading indicator while the image loads.
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Center(
-                child: CircularProgressIndicator(
-                  value:
-                      loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              loadingProgress.expectedTotalBytes!
-                          : null,
-                ),
-              );
-            },
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: Image.network(
+                imageUrls[index],
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.blueGrey[100],
+                    child: const Center(
+                      child: Icon(
+                        Icons.broken_image,
+                        size: 100,
+                        color: Colors.blueGrey,
+                      ),
+                    ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: Colors.blueAccent,
+                      value:
+                          loadingProgress.expectedTotalBytes != null
+                              ? loadingProgress.cumulativeBytesLoaded /
+                                  loadingProgress.expectedTotalBytes!
+                              : null,
+                    ),
+                  );
+                },
+              ),
+            ),
           );
         },
       ),
@@ -182,8 +312,22 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   (viewModel.item!.quantity ?? 0) > 0);
         }
 
-        return Padding(
+        return Container(
           padding: const EdgeInsets.all(16.0),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 10,
+                offset: const Offset(0, -5),
+              ),
+            ],
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
           child: ElevatedButton.icon(
             onPressed:
                 canAddToCart && !viewModel.isLoading
@@ -195,7 +339,12 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                             content: Text(
                               'Added ${viewModel.item!.name} to cart!',
                             ),
-                            duration: const Duration(seconds: 2),
+                            duration: const Duration(seconds: 1),
+                            backgroundColor: Colors.green[400],
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         );
                       } else if (mounted) {
@@ -204,7 +353,11 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                             content: Text(
                               viewModel.errorMessage ?? 'Could not add item.',
                             ),
-                            backgroundColor: Colors.red,
+                            backgroundColor: Colors.redAccent,
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
                           ),
                         );
                       }
@@ -212,19 +365,31 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     : null,
             icon:
                 viewModel.isLoading
-                    ? const SizedBox.shrink()
-                    : const Icon(Icons.add_shopping_cart),
-            label:
-                viewModel.isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('Add to Cart', style: TextStyle(fontSize: 18)),
+                    ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                    : const Icon(Icons.add_shopping_cart, size: 24),
+            label: Text(
+              viewModel.isLoading ? 'Adding to Cart...' : 'Add to Cart',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueGrey[700],
+              backgroundColor:
+                  canAddToCart && !viewModel.isLoading
+                      ? Colors.deepOrangeAccent
+                      : Colors.grey[400],
               foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(50),
+              minimumSize: const Size.fromHeight(55),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(15),
               ),
+              elevation: 8,
+              padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),
         );

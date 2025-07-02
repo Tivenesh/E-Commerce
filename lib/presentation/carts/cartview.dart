@@ -5,32 +5,26 @@ import 'package:e_commerce/data/models/cart.dart'; // For CartItem type
 
 /// The user's shopping cart page (View).
 class CartPage extends StatefulWidget {
-  // <<<--- MUST BE StatefulWidget
-  const CartPage({super.key});
+  final VoidCallback? onStartShopping; // New callback
+
+  const CartPage({super.key, this.onStartShopping}); // Update constructor
 
   @override
   State<CartPage> createState() => _CartPageState();
 }
 
 class _CartPageState extends State<CartPage> {
-  // <<<--- THESE CONTROLLERS MUST BE DECLARED AT THE STATE LEVEL
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _instructionsController = TextEditingController();
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Get the CartViewModel instance
     final cartViewModel = Provider.of<CartViewModel>(context, listen: false);
-
-    // <<<--- ADD THIS LISTENER TO UPDATE THE ADDRESS FIELD
     cartViewModel.addListener(_updateAddressField);
-
-    // Call it once to set the initial value if data is already loaded when the widget builds
     _updateAddressField();
   }
 
-  // <<<--- THIS METHOD IS CRUCIAL FOR UPDATING THE TEXTFIELD
   void _updateAddressField() {
     final cartViewModel = Provider.of<CartViewModel>(context, listen: false);
     if (cartViewModel.userAddress != null &&
@@ -44,7 +38,6 @@ class _CartPageState extends State<CartPage> {
 
   @override
   void dispose() {
-    // <<<--- CRITICAL: REMOVE LISTENER AND DISPOSE CONTROLLERS
     Provider.of<CartViewModel>(
       context,
       listen: false,
@@ -56,7 +49,6 @@ class _CartPageState extends State<CartPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Define the vibrant colors from your ItemListPage theme
     const Color primaryPink = Color.fromARGB(255, 200, 100, 163);
     const Color accentPurple = Colors.purpleAccent;
     final Color buttonColor = const Color.fromARGB(
@@ -64,9 +56,8 @@ class _CartPageState extends State<CartPage> {
       204,
       80,
       159,
-    ).withOpacity(0.9); // Slightly darker for buttons
-    final Color deleteButtonColor =
-        Colors.redAccent.shade400; // A strong but pleasant red for delete
+    ).withOpacity(0.9);
+    final Color deleteButtonColor = Colors.redAccent.shade400;
 
     return Scaffold(
       appBar: AppBar(
@@ -74,7 +65,6 @@ class _CartPageState extends State<CartPage> {
           'My Cart',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        // Use a gradient background for the AppBar for a "wow" effect, matching ItemListPage
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -84,7 +74,7 @@ class _CartPageState extends State<CartPage> {
             ),
           ),
         ),
-        elevation: 0, // Keep it flat for a modern look
+        elevation: 0,
       ),
       body: Consumer<CartViewModel>(
         builder: (context, viewModel, child) {
@@ -109,8 +99,7 @@ class _CartPageState extends State<CartPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons
-                        .shopping_bag_outlined, // A more stylish empty cart icon
+                    Icons.shopping_bag_outlined,
                     size: 100,
                     color: Colors.grey.shade300,
                   ),
@@ -127,8 +116,8 @@ class _CartPageState extends State<CartPage> {
                   const SizedBox(height: 30),
                   ElevatedButton.icon(
                     onPressed: () {
-                      // Optionally navigate to ItemListPage or a specific product section
-                      // Navigator.push(context, MaterialPageRoute(builder: (context) => ItemListPage()));
+                      // Call the callback to switch to the Shop tab
+                      widget.onStartShopping?.call();
                     },
                     icon: const Icon(
                       Icons.add_shopping_cart,
@@ -169,26 +158,18 @@ class _CartPageState extends State<CartPage> {
                     final cartItem = viewModel.cartItems[index];
                     return Card(
                       margin: const EdgeInsets.symmetric(vertical: 8.0),
-                      elevation: 8, // Increased elevation for a richer look
+                      elevation: 8,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                          20,
-                        ), // Even more rounded corners
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                      shadowColor: Colors.black.withOpacity(
-                        0.15,
-                      ), // More pronounced shadow
+                      shadowColor: Colors.black.withOpacity(0.15),
                       child: Padding(
-                        padding: const EdgeInsets.all(
-                          16.0,
-                        ), // Increased padding
+                        padding: const EdgeInsets.all(16.0),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             ClipRRect(
-                              borderRadius: BorderRadius.circular(
-                                15.0,
-                              ), // Rounded image corners
+                              borderRadius: BorderRadius.circular(15.0),
                               child:
                                   (cartItem.itemImageUrl != null &&
                                           cartItem.itemImageUrl!.isNotEmpty)
@@ -232,7 +213,7 @@ class _CartPageState extends State<CartPage> {
                                         ),
                                       ),
                             ),
-                            const SizedBox(width: 18), // Increased spacing
+                            const SizedBox(width: 18),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -244,8 +225,7 @@ class _CartPageState extends State<CartPage> {
                                       fontSize: 18,
                                       color: Colors.black87,
                                     ),
-                                    maxLines:
-                                        2, // Allow more lines for item name
+                                    maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                   const SizedBox(height: 6),
@@ -272,14 +252,13 @@ class _CartPageState extends State<CartPage> {
                                                           cartItem.itemId,
                                                           cartItem.quantity - 1,
                                                         )
-                                                    : null, // Disable when quantity is 1
-                                            buttonColor:
-                                                buttonColor, // Pass new color
+                                                    : null,
+                                            buttonColor: buttonColor,
                                           ),
                                           Padding(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: 10.0,
-                                            ), // More padding
+                                            ),
                                             child: Text(
                                               '${cartItem.quantity}',
                                               style: const TextStyle(
@@ -297,22 +276,18 @@ class _CartPageState extends State<CartPage> {
                                                       cartItem.itemId,
                                                       cartItem.quantity + 1,
                                                     ),
-                                            buttonColor:
-                                                buttonColor, // Pass new color
+                                            buttonColor: buttonColor,
                                           ),
                                         ],
                                       ),
-                                      // FIX: Wrap the price Text widget with Expanded
                                       Expanded(
                                         child: Text(
                                           'RM${(cartItem.quantity * cartItem.itemPrice).toStringAsFixed(2)}',
-                                          textAlign:
-                                              TextAlign.end, // Align to the end
+                                          textAlign: TextAlign.end,
                                           style: const TextStyle(
                                             fontWeight: FontWeight.bold,
-                                            fontSize: 16, // Larger total price
-                                            color:
-                                                primaryPink, // Use primary pink for item total
+                                            fontSize: 16,
+                                            color: primaryPink,
                                           ),
                                         ),
                                       ),
@@ -323,14 +298,11 @@ class _CartPageState extends State<CartPage> {
                             ),
                             IconButton(
                               icon: Icon(
-                                Icons
-                                    .delete_forever, // A more prominent delete icon
-                                color:
-                                    deleteButtonColor, // Custom delete button color
-                                size: 28, // Larger icon
+                                Icons.delete_forever,
+                                color: deleteButtonColor,
+                                size: 28,
                               ),
                               onPressed: () {
-                                // Add a confirmation dialog before deleting for better UX
                                 _showDeleteConfirmationDialog(
                                   context,
                                   viewModel,
@@ -347,23 +319,19 @@ class _CartPageState extends State<CartPage> {
                 ),
               ),
               Container(
-                padding: const EdgeInsets.all(
-                  20.0,
-                ), // More padding for bottom section
+                padding: const EdgeInsets.all(20.0),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(
-                        0.1,
-                      ), // More visible shadow
+                      color: Colors.black.withOpacity(0.1),
                       spreadRadius: 3,
                       blurRadius: 15,
                       offset: const Offset(0, -5),
                     ),
                   ],
                   borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(30), // More rounded top corners
+                    topLeft: Radius.circular(30),
                     topRight: Radius.circular(30),
                   ),
                 ),
@@ -384,15 +352,14 @@ class _CartPageState extends State<CartPage> {
                         Text(
                           'RM${viewModel.subtotal.toStringAsFixed(2)}',
                           style: const TextStyle(
-                            fontSize: 24, // Larger total amount
+                            fontSize: 24,
                             fontWeight: FontWeight.bold,
-                            color:
-                                accentPurple, // Use accent color for grand total
+                            color: accentPurple,
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 25), // More spacing
+                    const SizedBox(height: 25),
                     ElevatedButton.icon(
                       onPressed:
                           viewModel.cartItems.isEmpty || viewModel.isLoading
@@ -401,7 +368,7 @@ class _CartPageState extends State<CartPage> {
                                 _showPlaceOrderDialog(context, viewModel);
                               },
                       icon: const Icon(
-                        Icons.credit_card, // A modern payment icon
+                        Icons.credit_card,
                         color: Colors.white,
                         size: 26,
                       ),
@@ -413,18 +380,13 @@ class _CartPageState extends State<CartPage> {
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor:
-                            buttonColor, // Use the slightly darker button color
+                        backgroundColor: buttonColor,
                         foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(
-                          60,
-                        ), // Even taller button
+                        minimumSize: const Size.fromHeight(60),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                            16,
-                          ), // Rounded button
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        elevation: 8, // Higher elevation for button
+                        elevation: 8,
                       ),
                     ),
                   ],
@@ -437,14 +399,8 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  // --- Place Order Dialog ---
   void _showPlaceOrderDialog(BuildContext context, CartViewModel viewModel) {
-    final Color dialogPrimaryColor = Color.fromARGB(
-      255,
-      255,
-      120,
-      205,
-    ); // Match item list theme
+    final Color dialogPrimaryColor = Color.fromARGB(255, 255, 120, 205);
 
     if (viewModel.userAddress != null) {
       _addressController.text = viewModel.userAddress!;
@@ -457,7 +413,7 @@ class _CartPageState extends State<CartPage> {
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20), // More rounded dialog
+            borderRadius: BorderRadius.circular(20),
           ),
           title: Text(
             'Confirm Your Order',
@@ -465,7 +421,7 @@ class _CartPageState extends State<CartPage> {
             style: TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 22,
-              color: dialogPrimaryColor, // Match theme
+              color: dialogPrimaryColor,
             ),
           ),
           content: SingleChildScrollView(
@@ -478,9 +434,7 @@ class _CartPageState extends State<CartPage> {
                     labelText: 'Delivery Address',
                     hintText: 'Enter your full delivery address',
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(
-                        12,
-                      ), // Rounded text field
+                      borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide(
                         color: dialogPrimaryColor.withOpacity(0.7),
                       ),
@@ -531,7 +485,7 @@ class _CartPageState extends State<CartPage> {
               ],
             ),
           ),
-          actionsAlignment: MainAxisAlignment.spaceAround, // Distribute buttons
+          actionsAlignment: MainAxisAlignment.spaceAround,
           actions: <Widget>[
             TextButton(
               style: TextButton.styleFrom(
@@ -551,8 +505,7 @@ class _CartPageState extends State<CartPage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    dialogPrimaryColor, // Use dialog's primary color
+                backgroundColor: dialogPrimaryColor,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -582,7 +535,7 @@ class _CartPageState extends State<CartPage> {
                   );
                   return;
                 }
-                Navigator.of(dialogContext).pop(); // Close dialog
+                Navigator.of(dialogContext).pop();
 
                 final order = await viewModel.placeOrder(
                   _addressController.text.trim(),
@@ -623,7 +576,6 @@ class _CartPageState extends State<CartPage> {
     );
   }
 
-  // --- Delete Confirmation Dialog ---
   void _showDeleteConfirmationDialog(
     BuildContext context,
     CartViewModel viewModel,
@@ -679,11 +631,10 @@ class _CartPageState extends State<CartPage> {
   }
 }
 
-// A helper widget for consistent quantity buttons
 class _QuantityButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onPressed;
-  final Color buttonColor; // Added to pass color dynamically
+  final Color buttonColor;
 
   const _QuantityButton({
     required this.icon,
@@ -694,14 +645,12 @@ class _QuantityButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 30, // Slightly larger button
+      width: 30,
       height: 30,
       decoration: BoxDecoration(
         color:
             onPressed != null
-                ? buttonColor.withOpacity(
-                  0.15,
-                ) // Use provided color with opacity
+                ? buttonColor.withOpacity(0.15)
                 : Colors.grey.shade200,
         shape: BoxShape.circle,
         border: Border.all(
@@ -713,11 +662,11 @@ class _QuantityButton extends StatelessWidget {
         ),
       ),
       child: IconButton(
-        icon: Icon(icon, size: 22), // Larger icon
+        icon: Icon(icon, size: 22),
         color: onPressed != null ? buttonColor : Colors.grey.shade400,
         onPressed: onPressed,
-        padding: EdgeInsets.zero, // Remove default padding
-        splashRadius: 20, // Nice ripple effect
+        padding: EdgeInsets.zero,
+        splashRadius: 20,
       ),
     );
   }
