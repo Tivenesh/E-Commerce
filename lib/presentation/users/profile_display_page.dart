@@ -88,7 +88,7 @@ class _ProfileDisplayPageState extends State<ProfileDisplayPage> {
                     ElevatedButton(
                       onPressed: () => profileViewModel.fetchUserProfile(),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF6200EE),
+                        backgroundColor: const Color(0xFF0336FF),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 30,

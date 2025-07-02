@@ -327,7 +327,8 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       elevation: 4, // Subtle shadow for depth
                       shadowColor: const Color(
-                        0xFF6200EE,
+                        0xFFF44336,
+
                       ).withOpacity(0.3), // Shadow matching button color
                     ),
                     child:
@@ -416,7 +417,7 @@ class _ProfilePageState extends State<ProfilePage> {
           // Stronger border on focus
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(
-            color: Color(0xFF6200EE),
+            color: Color(0xFFF44336),
             width: 2,
           ), // Brand color border on focus
         ),
@@ -426,7 +427,7 @@ class _ProfilePageState extends State<ProfilePage> {
         color: Color(0xFF333333), // Dark text for input
         fontSize: 16,
       ),
-      cursorColor: const Color(0xFF6200EE), // Cursor matches brand color
+      cursorColor: const Color(0xFFF44336), // Cursor matches brand color
     );
   }
 }
