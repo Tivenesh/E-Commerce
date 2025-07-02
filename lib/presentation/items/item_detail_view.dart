@@ -194,9 +194,15 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                               color:
+<<<<<<< Updated upstream
                                   (item.quantity ?? 0) <= 0
                                       ? Colors.red
                                       : Colors.green[700],
+=======
+                              (item.quantity ?? 0) <= 0
+                                  ? Colors.red
+                                  : Colors.green[700],
+>>>>>>> Stashed changes
                             ),
                           ),
                         if (item.type == ItemType.service)
@@ -286,10 +292,17 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                     child: CircularProgressIndicator(
                       color: Colors.blueAccent,
                       value:
+<<<<<<< Updated upstream
                           loadingProgress.expectedTotalBytes != null
                               ? loadingProgress.cumulativeBytesLoaded /
                                   loadingProgress.expectedTotalBytes!
                               : null,
+=======
+                      loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                          loadingProgress.expectedTotalBytes!
+                          : null,
+>>>>>>> Stashed changes
                     ),
                   );
                 },
@@ -308,8 +321,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         if (viewModel.item != null) {
           canAddToCart =
               viewModel.item!.type == ItemType.service ||
-              (viewModel.item!.type == ItemType.product &&
-                  (viewModel.item!.quantity ?? 0) > 0);
+                  (viewModel.item!.type == ItemType.product &&
+                      (viewModel.item!.quantity ?? 0) > 0);
         }
 
         return Container(
@@ -330,6 +343,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
           ),
           child: ElevatedButton.icon(
             onPressed:
+<<<<<<< Updated upstream
                 canAddToCart && !viewModel.isLoading
                     ? () async {
                       final success = await viewModel.addItemToCart(1);
@@ -388,6 +402,66 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15),
               ),
+=======
+            canAddToCart && !viewModel.isLoading
+                ? () async {
+              final success = await viewModel.addItemToCart(1);
+              if (mounted && success) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Added ${viewModel.item!.name} to cart!',
+                    ),
+                    duration: const Duration(seconds: 1),
+                    backgroundColor: Colors.green[400],
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              } else if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      viewModel.errorMessage ?? 'Could not add item.',
+                    ),
+                    backgroundColor: Colors.redAccent,
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                );
+              }
+            }
+                : null,
+            icon:
+            viewModel.isLoading
+                ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                color: Colors.white,
+                strokeWidth: 2,
+              ),
+            )
+                : const Icon(Icons.add_shopping_cart, size: 24),
+            label: Text(
+              viewModel.isLoading ? 'Adding to Cart...' : 'Add to Cart',
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor:
+              canAddToCart && !viewModel.isLoading
+                  ? Colors.deepOrangeAccent
+                  : Colors.grey[400],
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(55),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+>>>>>>> Stashed changes
               elevation: 8,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
