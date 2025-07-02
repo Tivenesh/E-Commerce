@@ -1,9 +1,11 @@
+// lib/presentation/sell/sell_item_form_page.dart
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:e_commerce/presentation/sell/sellitemview.dart';
-import 'package:image_picker/image_picker.dart'; // Import ImagePicker
-import 'dart:io'; // Import for File
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class SellItemFormPage extends StatelessWidget {
   final String? itemIdToEdit;
@@ -16,7 +18,7 @@ class SellItemFormPage extends StatelessWidget {
       create: (context) {
         final vm = SellItemVM();
         if (itemIdToEdit != null) {
-          vm.loadItemForEdit(itemIdToEdit!); // Load data if editing
+          vm.loadItemForEdit(itemIdToEdit!);
         }
         return vm;
       },
@@ -48,24 +50,24 @@ class _SellItemFormStateInternal extends State<_SellItemForm> {
   void initState() {
     super.initState();
     _vm = Provider.of<SellItemVM>(context, listen: false);
-    _setControllers(); // Set initial values for controllers
-    _vm.addListener(_onVmChanged); // Listen to VM changes
+    _vm.addListener(_onVmChanged);
+    _setControllers();
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (_vm != Provider.of<SellItemVM>(context, listen: false)) {
-      _vm.removeListener(_onVmChanged);
-      _vm = Provider.of<SellItemVM>(context, listen: false);
-      _vm.addListener(_onVmChanged);
-      _setControllers();
-    }
+  void dispose() {
+    _titleController.dispose();
+    _descriptionController.dispose();
+    _priceController.dispose();
+    _categoryController.dispose();
+    _quantityController.dispose();
+    _durationController.dispose();
+    _vm.removeListener(_onVmChanged);
+    super.dispose();
   }
 
   void _onVmChanged() {
-    // Update controllers only if they are not already reflecting the VM's state
-    // This prevents infinite loops or incorrect cursor placement.
+    if (!mounted) return;
     if (_titleController.text != _vm.formState.title) {
       _titleController.text = _vm.formState.title;
     }
@@ -78,12 +80,10 @@ class _SellItemFormStateInternal extends State<_SellItemForm> {
     if (_categoryController.text != _vm.formState.category) {
       _categoryController.text = _vm.formState.category;
     }
-    if (_vm.formState.itemType == 'Product' &&
-        _quantityController.text != (_vm.formState.quantity ?? '')) {
+    if (_vm.formState.itemType == 'Product' && _quantityController.text != (_vm.formState.quantity ?? '')) {
       _quantityController.text = _vm.formState.quantity ?? '';
     }
-    if (_vm.formState.itemType == 'Service' &&
-        _durationController.text != (_vm.formState.duration ?? '')) {
+    if (_vm.formState.itemType == 'Service' && _durationController.text != (_vm.formState.duration ?? '')) {
       _durationController.text = _vm.formState.duration ?? '';
     }
   }
@@ -98,242 +98,291 @@ class _SellItemFormStateInternal extends State<_SellItemForm> {
   }
 
   @override
-  void dispose() {
-    _titleController.dispose();
-    _descriptionController.dispose();
-    _priceController.dispose();
-    _categoryController.dispose();
-    _quantityController.dispose();
-    _durationController.dispose();
-    _vm.removeListener(_onVmChanged); // Remove listener
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // UPDATED: Consistent AppBar styling
       appBar: AppBar(
         title: Text(
           widget.itemIdToEdit != null ? 'Edit Listing' : 'Add New Listing',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+        centerTitle: true,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color.fromARGB(255, 255, 120, 205), Colors.purpleAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
+      // UPDATED: Consistent background gradient
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blueGrey[50]!, Colors.blueGrey[100]!],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Consumer<SellItemVM>(
+          builder: (context, vm, child) {
+            if (vm.isLoading && widget.itemIdToEdit != null && vm.formState.title.isEmpty) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // UPDATED: Styled Dropdown
+                  _buildDropdownField(vm),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _titleController,
+                    label: 'Title',
+                    icon: Icons.title,
+                    onChanged: (v) => vm.updateField('title', v),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _descriptionController,
+                    label: 'Description',
+                    icon: Icons.description,
+                    onChanged: (v) => vm.updateField('description', v),
+                    maxLines: 4,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _priceController,
+                    label: 'Price (RM)',
+                    icon: Icons.attach_money,
+                    keyboardType: TextInputType.number,
+                    onChanged: (v) => vm.updateField('price', v),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTextField(
+                    controller: _categoryController,
+                    label: 'Category',
+                    icon: Icons.category,
+                    onChanged: (v) => vm.updateField('category', v),
+                  ),
+                  const SizedBox(height: 16),
+                  if (vm.formState.itemType == 'Product')
+                    _buildTextField(
+                      controller: _quantityController,
+                      label: 'Quantity',
+                      icon: Icons.inventory_2,
+                      keyboardType: TextInputType.number,
+                      onChanged: (v) => vm.updateField('quantity', v),
+                    ),
+                  if (vm.formState.itemType == 'Service')
+                    _buildTextField(
+                      controller: _durationController,
+                      label: 'Duration (e.g., 1 hour)',
+                      icon: Icons.timer,
+                      onChanged: (v) => vm.updateField('duration', v),
+                    ),
+                  const SizedBox(height: 24),
+                  // UPDATED: Styled Image Picking Section
+                  _buildImagePicker(vm),
+                  const SizedBox(height: 32),
+                  // UPDATED: Styled Submit Button
+                  _buildSubmitButton(vm),
+                  if (vm.errorMessage != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 15),
+                      child: Center(
+                        child: Text(
+                          'Error: ${vm.errorMessage!}',
+                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
-      body: Consumer<SellItemVM>(
-        builder: (context, vm, child) {
-          if (vm.isLoading &&
-              widget.itemIdToEdit != null &&
-              vm.formState.title.isEmpty) {
-            // Show loading indicator only when initially loading for edit and form is empty
-            return const Center(child: CircularProgressIndicator());
-          }
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: vm.formState.itemType,
-                  decoration: const InputDecoration(labelText: 'Item Type'),
-                  items: const [
-                    DropdownMenuItem(value: 'Product', child: Text('Product')),
-                    DropdownMenuItem(value: 'Service', child: Text('Service')),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      vm.updateField('itemType', value);
-                      // Clear relevant controllers when type changes
-                      if (value == 'Product') {
-                        _durationController.clear();
-                      } else {
-                        _quantityController.clear();
-                      }
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: _titleController,
-                  decoration: const InputDecoration(labelText: 'Title'),
-                  onChanged: (v) => vm.updateField('title', v),
-                ),
-                TextField(
-                  controller: _descriptionController,
-                  decoration: const InputDecoration(labelText: 'Description'),
-                  onChanged: (v) => vm.updateField('description', v),
-                  maxLines: 3,
-                ),
-                TextField(
-                  controller: _priceController,
-                  decoration: const InputDecoration(labelText: 'Price (RM)'),
-                  keyboardType: TextInputType.number,
-                  onChanged: (v) => vm.updateField('price', v),
-                ),
-                TextField(
-                  controller: _categoryController,
-                  decoration: const InputDecoration(labelText: 'Category'),
-                  onChanged: (v) => vm.updateField('category', v),
-                ),
-                if (vm.formState.itemType == 'Product')
-                  TextField(
-                    controller: _quantityController,
-                    decoration: const InputDecoration(labelText: 'Quantity'),
-                    keyboardType: TextInputType.number,
-                    onChanged: (v) => vm.updateField('quantity', v),
-                  ),
-                if (vm.formState.itemType == 'Service')
-                  TextField(
-                    controller: _durationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Duration (e.g., 1 hour, 30 mins)',
-                    ),
-                    onChanged: (v) => vm.updateField('duration', v),
-                  ),
-                const SizedBox(height: 20),
-                // Image Picking Section
-                ElevatedButton.icon(
-                  onPressed: vm.pickImages,
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('Add Images'),
-                ),
-                const SizedBox(height: 10),
-                // Display selected images
-                Wrap(
-                  spacing: 8.0,
-                  runSpacing: 8.0,
-                  children:
-                      vm.selectedImages.map((image) {
-                        return Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(8.0),
-                              child: SizedBox(
-                                width: 100,
-                                height: 100,
-                                child:
-                                    image is XFile
-                                        ? Image.file(
-                                          File(image.path),
-                                          fit: BoxFit.cover,
-                                        )
-                                        : Image.network(
-                                          image as String,
-                                          fit: BoxFit.cover,
-                                          loadingBuilder: (
-                                            context,
-                                            child,
-                                            loadingProgress,
-                                          ) {
-                                            if (loadingProgress == null) {
-                                              return child; // Image is fully loaded
-                                            }
-                                            return Center(
-                                              child: CircularProgressIndicator(
-                                                value:
-                                                    loadingProgress
-                                                                .expectedTotalBytes !=
-                                                            null
-                                                        ? loadingProgress
-                                                                .cumulativeBytesLoaded /
-                                                            loadingProgress
-                                                                .expectedTotalBytes!
-                                                        : null, // Indeterminate progress if total bytes are unknown
-                                              ),
-                                            );
-                                          },
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  const Icon(
-                                                    Icons.broken_image,
-                                                    size: 50,
-                                                  ),
-                                        ),
-                              ),
-                            ),
-                            Positioned(
-                              top: -5,
-                              right: -5,
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.cancel,
-                                  color: Colors.red,
-                                  size: 20,
-                                ),
-                                onPressed: () => vm.removeImage(image),
-                              ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
-                ),
-                const SizedBox(height: 20),
-                Center(
-                  child:
-                      vm.isLoading && widget.itemIdToEdit == null
-                          ? const CircularProgressIndicator()
-                          : ElevatedButton(
-                            onPressed: () async {
-                              final currentUser =
-                                  FirebaseAuth.instance.currentUser;
-                              if (currentUser == null) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        "You must be logged in to list items.",
-                                      ),
-                                    ),
-                                  );
-                                }
-                                return;
-                              }
+    );
+  }
 
-                              try {
-                                await vm.submitForm(
-                                  currentUser.uid,
-                                  widget.itemIdToEdit,
-                                );
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        widget.itemIdToEdit != null
-                                            ? 'Listing updated successfully!'
-                                            : 'Listing added successfully!',
-                                      ),
-                                    ),
-                                  );
-                                  Navigator.pop(context, true);
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        'Error: ${vm.errorMessage ?? e.toString()}',
-                                      ),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                            child: Text(
-                              widget.itemIdToEdit != null
-                                  ? 'Update Listing'
-                                  : 'Submit Listing',
+  // NEW: Helper method for styled TextFields for consistency
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    required ValueChanged<String> onChanged,
+    int maxLines = 1,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      onChanged: onChanged,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: Colors.grey[600]),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+        ),
+      ),
+    );
+  }
+
+  // NEW: Helper method for styled Dropdown
+  Widget _buildDropdownField(SellItemVM vm) {
+    return DropdownButtonFormField<String>(
+      value: vm.formState.itemType,
+      decoration: InputDecoration(
+        labelText: 'Item Type',
+        prefixIcon: Icon(Icons.sell, color: Colors.grey[600]),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.grey.shade300),
+        ),
+      ),
+      items: const [
+        DropdownMenuItem(value: 'Product', child: Text('Product')),
+        DropdownMenuItem(value: 'Service', child: Text('Service')),
+      ],
+      onChanged: (value) {
+        if (value != null) {
+          vm.setItemType(value);
+        }
+      },
+    );
+  }
+
+  // NEW: Helper method for styled Image Picker section
+  Widget _buildImagePicker(SellItemVM vm) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Images", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade300)
+          ),
+          child: Column(
+            children: [
+              // Display selected images
+              Wrap(
+                spacing: 10.0,
+                runSpacing: 10.0,
+                children: vm.selectedImages.map((image) {
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: SizedBox(
+                          width: 80,
+                          height: 80,
+                          child: image is XFile
+                              ? Image.file(File(image.path), fit: BoxFit.cover)
+                              : Image.network(image as String, fit: BoxFit.cover, errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image)),
+                        ),
+                      ),
+                      Positioned(
+                        top: -10,
+                        right: -10,
+                        child: InkWell(
+                          onTap: () => vm.removeImage(image),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              shape: BoxShape.circle,
                             ),
+                            child: const Icon(Icons.close, color: Colors.white, size: 16),
                           ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 10),
+              // Add Images Button
+              OutlinedButton.icon(
+                onPressed: vm.pickImages,
+                icon: const Icon(Icons.add_a_photo),
+                label: const Text('Add Images'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                if (vm.errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10),
-                    child: Text(
-                      'Error: ${vm.errorMessage!}',
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-              ],
-            ),
-          );
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // NEW: Helper method for styled Submit button
+  Widget _buildSubmitButton(SellItemVM vm) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: vm.isLoading ? null : () async {
+          final currentUser = FirebaseAuth.instance.currentUser;
+          if (currentUser == null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("You must be logged in to list items.")),
+            );
+            return;
+          }
+          try {
+            await vm.submitForm(currentUser.uid, widget.itemIdToEdit);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(widget.itemIdToEdit != null ? 'Listing updated successfully!' : 'Listing added successfully!')),
+              );
+              Navigator.pop(context, true);
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: ${vm.errorMessage ?? e.toString()}')),
+              );
+            }
+          }
         },
+        icon: vm.isLoading
+            ? Container()
+            : Icon(widget.itemIdToEdit != null ? Icons.check_circle : Icons.add_circle),
+        label: vm.isLoading
+            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+            : Text(widget.itemIdToEdit != null ? 'Update Listing' : 'Submit Listing'),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.deepOrangeAccent,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
