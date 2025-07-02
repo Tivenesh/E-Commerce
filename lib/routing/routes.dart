@@ -61,11 +61,7 @@ class AppRouter {
         }
         return MaterialPageRoute(builder: (context) => const ProfilePage());
 
-      case AppRoutes.itemListRoute:
-        if (user == null) {
-          return MaterialPageRoute(builder: (context) => const AuthScreen());
-        }
-        return MaterialPageRoute(builder: (context) => const ItemListPage());
+    // UPDATED: The itemListRoute case has been removed as requested.
 
       case AppRoutes.itemDetailRoute:
         if (user == null) {

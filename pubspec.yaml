@@ -28,6 +28,8 @@ dependencies:
   fl_chart: ^0.68.0
   cupertino_icons: ^1.0.6
   intl: ^0.20.2
+  badges: ^3.1.2
+
 
 
 dev_dependencies:

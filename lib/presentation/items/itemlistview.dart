@@ -3,10 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:e_commerce/presentation/items/itemlistvm.dart';
 import 'package:e_commerce/data/models/item.dart'; // For ItemType
 import 'package:e_commerce/routing/routes.dart'; // Import for navigation
+import 'package:e_commerce/presentation/widgets/cart_animation.dart'; // Import the animation helper
 
 /// The Item List Page (View) displays all available items and allows searching.
 class ItemListPage extends StatefulWidget {
-  const ItemListPage({super.key});
+  // It now accepts the cartKey from HomeScreen to know the animation's destination.
+  final GlobalKey cartKey;
+  const ItemListPage({super.key, required this.cartKey});
 
   @override
   State<ItemListPage> createState() => _ItemListPageState();
@@ -14,6 +17,8 @@ class ItemListPage extends StatefulWidget {
 
 class _ItemListPageState extends State<ItemListPage> {
   final TextEditingController _searchController = TextEditingController();
+  // A map to store a GlobalKey for each item's image to get its start position.
+  final Map<String, GlobalKey> _itemImageKeys = {};
 
   @override
   void initState() {
@@ -39,8 +44,6 @@ class _ItemListPageState extends State<ItemListPage> {
     // Get the view model instance to access its state and methods
     final viewModel = Provider.of<ItemListViewModel>(context);
 
-    // This page no longer needs its own Scaffold, as the HomeScreen provides it.
-    // It returns a Container that will be placed in the body of the HomeScreen's Scaffold.
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -51,7 +54,7 @@ class _ItemListPageState extends State<ItemListPage> {
       ),
       child: Column(
         children: [
-          // --- UPDATED: Search and Filter Bar Area ---
+          // The Search and Filter Bar Area
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -98,17 +101,13 @@ class _ItemListPageState extends State<ItemListPage> {
                     ),
                   ),
                   const SizedBox(width: 8),
-
-                  // --- NEW: The Sort Button and Dropdown Menu ---
                   PopupMenuButton<SortType>(
                     tooltip: "Sort Items",
                     initialValue: viewModel.currentSortType,
-                    // When a user selects an option, call the ViewModel's method
                     onSelected: (SortType result) {
                       viewModel.updateSortOrder(result);
                     },
                     icon: const Icon(Icons.sort, color: Colors.white, size: 28),
-                    // Defines the items that appear in the dropdown menu
                     itemBuilder: (BuildContext context) => <PopupMenuEntry<SortType>>[
                       const PopupMenuItem<SortType>(
                         value: SortType.newest,
@@ -234,6 +233,8 @@ class _ItemListPageState extends State<ItemListPage> {
                   itemBuilder: (context, index) {
                     final item = viewModel.items[index];
                     final sellerName = viewModel.getSellerName(item.sellerId);
+                    _itemImageKeys.putIfAbsent(item.id, () => GlobalKey());
+
                     return AnimatedOpacity(
                       opacity: 1.0,
                       duration: const Duration(milliseconds: 500),
@@ -269,122 +270,43 @@ class _ItemListPageState extends State<ItemListPage> {
                                   CrossAxisAlignment.start,
                                   children: [
                                     Container(
+                                      key: _itemImageKeys[item.id],
                                       width: 90,
                                       height: 90,
                                       decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(
-                                          15,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.1,
-                                            ),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 3),
-                                          ),
-                                        ],
-                                      ),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(
-                                          15,
-                                        ),
-                                        child:
-                                        (item.imageUrls.isNotEmpty)
-                                            ? Image.network(
-                                          item.imageUrls.first,
-                                          width: 90,
-                                          height: 90,
+                                        borderRadius: BorderRadius.circular(15),
+                                        image: (item.imageUrls.isNotEmpty)
+                                            ? DecorationImage(
+                                          image: NetworkImage(item.imageUrls.first),
                                           fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (
-                                              context,
-                                              error,
-                                              stackTrace,
-                                              ) => Container(
-                                            color:
-                                            Colors
-                                                .blueGrey[100],
-                                            child: const Icon(
-                                              Icons
-                                                  .image_not_supported,
-                                              color:
-                                              Colors.blueGrey,
-                                              size: 40,
-                                            ),
-                                          ),
                                         )
-                                            : Container(
-                                          color: Colors.blueGrey[100],
-                                          child: Icon(
-                                            item.type ==
-                                                ItemType.product
-                                                ? Icons.shopping_bag
-                                                : Icons
-                                                .miscellaneous_services,
-                                            color: Colors.blueGrey,
-                                            size: 40,
-                                          ),
-                                        ),
+                                            : null,
                                       ),
+                                      child: (item.imageUrls.isEmpty)
+                                          ? ClipRRect(
+                                        borderRadius: BorderRadius.circular(15),
+                                        child: Container(
+                                          color: Colors.blueGrey[100],
+                                          child: Icon(item.type == ItemType.product ? Icons.shopping_bag : Icons.miscellaneous_services, color: Colors.blueGrey, size: 40),
+                                        ),
+                                      )
+                                          : null,
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: Column(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            item.name,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 18,
-                                              color: Colors.blueGrey,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                                          Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.blueGrey), maxLines: 1, overflow: TextOverflow.ellipsis),
                                           const SizedBox(height: 4),
-                                          Text(
-                                            'Seller: $sellerName',
-                                            style: TextStyle(
-                                              color: Colors.grey[700],
-                                              fontSize: 13,
-                                              fontStyle: FontStyle.italic,
-                                            ),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                                          Text('Seller: $sellerName', style: TextStyle(color: Colors.grey[700], fontSize: 13, fontStyle: FontStyle.italic), maxLines: 1, overflow: TextOverflow.ellipsis),
                                           const SizedBox(height: 6),
-                                          Text(
-                                            item.description,
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 14,
-                                            ),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                                          Text(item.description, style: TextStyle(color: Colors.grey[600], fontSize: 14), maxLines: 2, overflow: TextOverflow.ellipsis),
                                           const SizedBox(height: 8),
                                           Container(
-                                            padding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.blueGrey[100],
-                                              borderRadius:
-                                              BorderRadius.circular(8),
-                                            ),
-                                            child: Text(
-                                              '${item.type.toString().split('.').last}: ${item.category}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.blueGrey[700],
-                                              ),
-                                            ),
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(color: Colors.blueGrey[100], borderRadius: BorderRadius.circular(8)),
+                                            child: Text('${item.type.toString().split('.').last}: ${item.category}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blueGrey[700])),
                                           ),
                                         ],
                                       ),
@@ -394,62 +316,30 @@ class _ItemListPageState extends State<ItemListPage> {
                                       crossAxisAlignment:
                                       CrossAxisAlignment.end,
                                       children: [
-                                        Text(
-                                          'RM${item.price.toStringAsFixed(2)}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w900,
-                                            fontSize: 20,
-                                            color: Colors.green,
-                                          ),
-                                        ),
+                                        Text('RM${item.price.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20, color: Colors.green)),
                                         const SizedBox(height: 4),
                                         if (item.type == ItemType.product)
-                                          Text(
-                                            'Stock: ${item.quantity}',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color:
-                                              (item.quantity ?? 0) <= 0
-                                                  ? Colors.red
-                                                  : Colors.green[700],
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
+                                          Text('Stock: ${item.quantity}', style: TextStyle(fontSize: 13, color: (item.quantity ?? 0) <= 0 ? Colors.red : Colors.green[700], fontWeight: FontWeight.bold)),
                                         const SizedBox(height: 8),
                                         ElevatedButton.icon(
                                           onPressed:
                                           item.type == ItemType.product &&
-                                              (item.quantity ?? 0) <=
-                                                  0
+                                              (item.quantity ?? 0) <= 0
                                               ? null
                                               : () {
-                                            viewModel.addItemToCart(
-                                              item.id,
-                                              1,
-                                            );
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                  'Added ${item.name} to cart!',
-                                                ),
-                                                duration:
-                                                const Duration(
-                                                  seconds: 1,
-                                                ),
-                                                backgroundColor:
-                                                Colors.green[400],
-                                                behavior:
-                                                SnackBarBehavior
-                                                    .floating,
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                  BorderRadius.circular(
-                                                    10,
-                                                  ),
-                                                ),
-                                              ),
+                                            ImageProvider? imageProvider;
+                                            if(item.imageUrls.isNotEmpty) {
+                                              imageProvider = NetworkImage(item.imageUrls.first);
+                                            }
+                                            // UPDATED: The arguments are now in the correct order
+                                            runCartAnimation(
+                                              context,                // 1. context
+                                              _itemImageKeys[item.id]!, // 2. itemKey
+                                              widget.cartKey,         // 3. cartKey
+                                              imageProvider,
+                                                  () {
+                                                viewModel.addItemToCart(item.id, 1);
+                                              },
                                             );
                                           },
                                           icon: const Icon(
@@ -460,8 +350,7 @@ class _ItemListPageState extends State<ItemListPage> {
                                           style: ElevatedButton.styleFrom(
                                             backgroundColor:
                                             item.type ==
-                                                ItemType
-                                                    .product &&
+                                                ItemType.product &&
                                                 (item.quantity ??
                                                     0) <=
                                                     0
