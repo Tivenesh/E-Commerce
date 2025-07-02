@@ -36,8 +36,11 @@ class _ItemListPageState extends State<ItemListPage> {
 
   @override
   Widget build(BuildContext context) {
-    // UPDATED: Removed the redundant Scaffold widget from here.
-    // The main Scaffold is provided by HomeScreen.
+    // Get the view model instance to access its state and methods
+    final viewModel = Provider.of<ItemListViewModel>(context);
+
+    // This page no longer needs its own Scaffold, as the HomeScreen provides it.
+    // It returns a Container that will be placed in the body of the HomeScreen's Scaffold.
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -47,9 +50,8 @@ class _ItemListPageState extends State<ItemListPage> {
         ),
       ),
       child: Column(
-        // Use a Column to stack the search bar and the list
         children: [
-          // Search Bar area with a gradient background
+          // --- UPDATED: Search and Filter Bar Area ---
           Container(
             decoration: const BoxDecoration(
               gradient: LinearGradient(
@@ -61,7 +63,6 @@ class _ItemListPageState extends State<ItemListPage> {
                 end: Alignment.bottomRight,
               ),
               boxShadow: [
-                // Added shadow for a lifted effect
                 BoxShadow(
                   color: Colors.black26,
                   blurRadius: 10,
@@ -69,37 +70,79 @@ class _ItemListPageState extends State<ItemListPage> {
                 ),
               ],
             ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 8.0,
-            ),
-            // We use a simple Padding here instead of SafeArea because the HomeScreen's AppBar already handles the top safe area.
-            child: Padding(
-              padding: const EdgeInsets.only(top: 10.0, bottom: 10.0), // Adjust padding as needed
-              child: TextField(
-                controller: _searchController,
-                decoration: InputDecoration(
-                  hintText: 'Search for amazing items...',
-                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-                  prefixIcon: const Icon(Icons.search, color: Colors.white),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
+            padding: const EdgeInsets.fromLTRB(16.0, 0, 8.0, 0),
+            child: SafeArea(
+              bottom: false,
+              child: Row( // Row holds the search field and the new sort button
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _searchController,
+                      decoration: InputDecoration(
+                        hintText: 'Search for amazing items...',
+                        hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
+                        prefixIcon: const Icon(Icons.search, color: Colors.white),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(30),
+                          borderSide: BorderSide.none,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white.withOpacity(0.2),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 15,
+                          horizontal: 20,
+                        ),
+                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 16),
+                      cursorColor: Colors.white,
+                    ),
                   ),
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.2),
-                  contentPadding: const EdgeInsets.symmetric(
-                    vertical: 15,
-                    horizontal: 20,
+                  const SizedBox(width: 8),
+
+                  // --- NEW: The Sort Button and Dropdown Menu ---
+                  PopupMenuButton<SortType>(
+                    tooltip: "Sort Items",
+                    initialValue: viewModel.currentSortType,
+                    // When a user selects an option, call the ViewModel's method
+                    onSelected: (SortType result) {
+                      viewModel.updateSortOrder(result);
+                    },
+                    icon: const Icon(Icons.sort, color: Colors.white, size: 28),
+                    // Defines the items that appear in the dropdown menu
+                    itemBuilder: (BuildContext context) => <PopupMenuEntry<SortType>>[
+                      const PopupMenuItem<SortType>(
+                        value: SortType.newest,
+                        child: Text('Sort by: Newest'),
+                      ),
+                      const PopupMenuItem<SortType>(
+                        value: SortType.oldest,
+                        child: Text('Sort by: Oldest'),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem<SortType>(
+                        value: SortType.priceLowToHigh,
+                        child: Text('Price: Low to High'),
+                      ),
+                      const PopupMenuItem<SortType>(
+                        value: SortType.priceHighToLow,
+                        child: Text('Price: High to Low'),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem<SortType>(
+                        value: SortType.nameAZ,
+                        child: Text('Name: A-Z'),
+                      ),
+                      const PopupMenuItem<SortType>(
+                        value: SortType.nameZA,
+                        child: Text('Name: Z-A'),
+                      ),
+                    ],
                   ),
-                ),
-                style: const TextStyle(color: Colors.white, fontSize: 16),
-                cursorColor: Colors.white,
+                ],
               ),
             ),
           ),
           Expanded(
-            // The item list takes the remaining space
             child: Consumer<ItemListViewModel>(
               builder: (context, viewModel, child) {
                 if (viewModel.isLoading) {
