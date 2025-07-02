@@ -1,3 +1,4 @@
+// cartview.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:e_commerce/presentation/carts/cartvm.dart';
@@ -409,7 +410,7 @@ class _CartPageState extends State<CartPage> {
     }
 
     showDialog(
-      context: context,
+      context: context, // Corrected from dialogContext to context
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(
@@ -522,7 +523,8 @@ class _CartPageState extends State<CartPage> {
               ),
               onPressed: () async {
                 if (_addressController.text.trim().isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    // Corrected from dialogContext to context
                     const SnackBar(
                       content: Text(
                         'Delivery address cannot be empty!',
@@ -583,7 +585,7 @@ class _CartPageState extends State<CartPage> {
     String itemName,
   ) {
     showDialog(
-      context: context,
+      context: context, // Corrected from dialogContext to context
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           shape: RoundedRectangleBorder(

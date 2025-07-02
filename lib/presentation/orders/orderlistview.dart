@@ -1,390 +1,368 @@
-import 'package:e_commerce/data/models/order_item.dart';
-import 'package:e_commerce/presentation/orders/orderlistvm.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:e_commerce/presentation/carts/cartvm.dart';
+import 'package:e_commerce/data/models/cart.dart'; // For CartItem type
 
-/// The user's order history page (View).
-class OrderListPage extends StatelessWidget {
-  const OrderListPage({super.key});
+/// The user's shopping cart page (View).
+class CartPage extends StatefulWidget {
+  // <<<--- MUST BE StatefulWidget
+  const CartPage({super.key});
+
+  @override
+  State<CartPage> createState() => _CartPageState();
+}
+
+class _CartPageState extends State<CartPage> {
+  // <<<--- THESE CONTROLLERS MUST BE DECLARED AT THE STATE LEVEL
+  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _instructionsController = TextEditingController();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the CartViewModel instance
+    final cartViewModel = Provider.of<CartViewModel>(context, listen: false);
+
+    // <<<--- ADD THIS LISTENER TO UPDATE THE ADDRESS FIELD
+    cartViewModel.addListener(_updateAddressField);
+
+    // Call it once to set the initial value if data is already loaded when the widget builds
+    _updateAddressField();
+  }
+
+  // <<<--- THIS METHOD IS CRUCIAL FOR UPDATING THE TEXTFIELD
+  void _updateAddressField() {
+    final cartViewModel = Provider.of<CartViewModel>(context, listen: false);
+    if (cartViewModel.userAddress != null &&
+        _addressController.text != cartViewModel.userAddress) {
+      _addressController.text = cartViewModel.userAddress!;
+    } else if (cartViewModel.userAddress == null &&
+        _addressController.text.isNotEmpty) {
+      _addressController.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    // <<<--- CRITICAL: REMOVE LISTENER AND DISPOSE CONTROLLERS
+    Provider.of<CartViewModel>(
+      context,
+      listen: false,
+    ).removeListener(_updateAddressField);
+    _addressController.dispose();
+    _instructionsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Enhanced AppBar with a gradient and prominent title
-      appBar: AppBar(
-        title: const Text(
-          'My Orders',
-          style: TextStyle(
-            fontSize: 24, // Changed from 28 to 24
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color.fromARGB(255, 255, 120, 205), Colors.purpleAccent],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        elevation: 10,
-      ),
-      // Body with the requested blueGrey gradient background
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blueGrey[50]!, Colors.blueGrey[100]!],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Consumer<OrderListViewModel>(
-          builder: (context, viewModel, child) {
-            if (viewModel.isLoading) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    CircularProgressIndicator(color: Colors.blueAccent),
-                    SizedBox(height: 16),
-                    Text(
-                      'Fetching your orders...',
-                      style: TextStyle(fontSize: 16, color: Colors.blueGrey),
-                    ),
-                  ],
+      appBar: AppBar(title: const Text('My Cart')),
+      body: Consumer<CartViewModel>(
+        builder: (context, viewModel, child) {
+          if (viewModel.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (viewModel.errorMessage != null) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Text(
+                  viewModel.errorMessage!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.red, fontSize: 16),
                 ),
-              );
-            }
-            if (viewModel.errorMessage != null) {
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.error_outline,
-                        color: Colors.redAccent,
-                        size: 50,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Oops! ${viewModel.errorMessage!}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.redAccent,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Please try again later.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }
-            if (viewModel.orders.isEmpty) {
-              return const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.shopping_bag_outlined,
-                      color: Colors.blueGrey,
-                      size: 60,
-                    ),
-                    SizedBox(height: 16),
-                    Text(
-                      'You have no orders yet.',
-                      style: TextStyle(fontSize: 20, color: Colors.blueGrey),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      'Start shopping to see your orders here!',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              );
-            }
+              ),
+            );
+          }
+          if (viewModel.cartItems.isEmpty) {
+            return const Center(
+              child: Text(
+                'Your cart is empty. Start shopping!',
+                style: TextStyle(fontSize: 18),
+              ),
+            );
+          }
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(12.0),
-              itemCount: viewModel.orders.length,
-              itemBuilder: (context, index) {
-                final order = viewModel.orders[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8.0),
-                  elevation: 6, // Increased elevation for a lifted effect
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      15,
-                    ), // More rounded corners
-                  ),
-                  clipBehavior:
-                      Clip.antiAlias, // Ensures content respects border radius
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white,
-                          Colors.blueGrey[50]!,
-                        ], // Subtle gradient for card background
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
+          return Column(
+            children: [
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(8.0),
+                  itemCount: viewModel.cartItems.length,
+                  itemBuilder: (context, index) {
+                    final cartItem = viewModel.cartItems[index];
+                    return Card(
+                      margin: const EdgeInsets.symmetric(vertical: 6.0),
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                    ),
-                    child: ExpansionTile(
-                      tilePadding: const EdgeInsets.symmetric(
-                        horizontal: 20.0, // More horizontal padding
-                        vertical: 12.0, // More vertical padding
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: _getStatusColor(
-                          order.status,
-                        ).withOpacity(0.1),
-                        child: Icon(
-                          _getStatusIcon(order.status),
-                          color: _getStatusColor(order.status),
-                          size: 28,
-                        ),
-                      ),
-                      title: Text(
-                        'Order #${order.id.substring(0, 8).toUpperCase()}', // Show more of the ID
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18, // Slightly larger title
-                          color: Colors.blueGrey,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const SizedBox(height: 4),
-                          Text(
-                            'Total: RM${order.totalAmount.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color:
-                                  Colors.green[700], // Highlight total amount
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Status: ${_getStatusText(order.status)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: _getStatusColor(order.status),
-                            ),
-                          ),
-                        ],
-                      ),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(
-                            20.0,
-                            0,
-                            20.0,
-                            20.0,
-                          ), // Consistent padding
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Divider(
-                                height: 20,
-                                thickness: 1.5,
-                                color: Colors.blueGrey,
-                              ),
-                              _buildDetailRow(
-                                'Order Date:',
-                                order.orderDate
-                                    .toDate()
-                                    .toLocal()
-                                    .toString()
-                                    .split(' ')[0],
-                                Icons.calendar_today,
-                              ),
-                              if (order.estimatedDeliveryDate != null)
-                                _buildDetailRow(
-                                  'Est. Delivery:',
-                                  order.estimatedDeliveryDate!
-                                      .toDate()
-                                      .toLocal()
-                                      .toString()
-                                      .split(' ')[0],
-                                  Icons.delivery_dining,
-                                ),
-                              if (order.deliveredDate != null)
-                                _buildDetailRow(
-                                  'Delivered On:',
-                                  order.deliveredDate!
-                                      .toDate()
-                                      .toLocal()
-                                      .toString()
-                                      .split(' ')[0],
-                                  Icons.check_box,
-                                ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Items in this order:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.blueGrey[700],
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              ...order.items
-                                  .map(
-                                    (item) => Padding(
-                                      padding: const EdgeInsets.only(
-                                        left: 8.0,
-                                        bottom: 4.0,
-                                      ),
-                                      child: Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Icon(
-                                            Icons.circle,
-                                            size: 8,
-                                            color: Colors.blueGrey[300],
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Row(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child:
+                                  (cartItem.itemImageUrl != null &&
+                                          cartItem.itemImageUrl!.isNotEmpty)
+                                      ? Image.network(
+                                        cartItem.itemImageUrl!,
+                                        width: 80,
+                                        height: 80,
+                                        fit: BoxFit.cover,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                Container(
+                                                  width: 80,
+                                                  height: 80,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.blueGrey[50],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          8.0,
+                                                        ),
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons.image_not_supported,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                      )
+                                      : Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          color: Colors.blueGrey[50],
+                                          borderRadius: BorderRadius.circular(
+                                            8.0,
                                           ),
-                                          const SizedBox(width: 8),
-                                          Expanded(
-                                            child: Text(
-                                              '${item.itemName} (x${item.quantity}) - RM${item.itemPrice.toStringAsFixed(2)}',
-                                              style: TextStyle(
-                                                fontSize: 15,
-                                                color: Colors.grey[800],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
+                                        ),
+                                        child: const Icon(
+                                          Icons.shopping_cart,
+                                          color: Colors.blueGrey,
+                                        ),
                                       ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    cartItem.itemName,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
                                     ),
-                                  )
-                                  .toList(),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Delivery Details:',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: Colors.blueGrey[700],
-                                ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    'RM${cartItem.itemPrice.toStringAsFixed(2)} / unit',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.remove_circle_outline,
+                                        ),
+                                        onPressed:
+                                            () => viewModel
+                                                .updateCartItemQuantity(
+                                                  cartItem.itemId,
+                                                  cartItem.quantity - 1,
+                                                ),
+                                      ),
+                                      Text(
+                                        '${cartItem.quantity}',
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.add_circle_outline,
+                                        ),
+                                        onPressed:
+                                            () => viewModel
+                                                .updateCartItemQuantity(
+                                                  cartItem.itemId,
+                                                  cartItem.quantity + 1,
+                                                ),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        'RM${(cartItem.quantity * cartItem.itemPrice).toStringAsFixed(2)}',
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 8),
-                              _buildDetailRow(
-                                'Address:',
-                                order.deliveryAddress,
-                                Icons.location_on,
+                            ),
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.redAccent,
                               ),
-                              if (order.deliveryInstructions != null &&
-                                  order.deliveryInstructions!.isNotEmpty)
-                                _buildDetailRow(
-                                  'Instructions:',
-                                  order.deliveryInstructions!,
-                                  Icons.notes,
-                                ),
-                            ],
+                              onPressed:
+                                  () =>
+                                      viewModel.removeCartItem(cartItem.itemId),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Subtotal:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          'RM${viewModel.subtotal.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed:
+                          viewModel.cartItems.isEmpty || viewModel.isLoading
+                              ? null
+                              : () {
+                                _showPlaceOrderDialog(context, viewModel);
+                              },
+                      icon: const Icon(Icons.shopping_bag_outlined),
+                      label: const Text(
+                        'Proceed to Checkout',
+                        style: TextStyle(fontSize: 18),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blueGrey[700],
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size.fromHeight(50),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showPlaceOrderDialog(BuildContext context, CartViewModel viewModel) {
+    // <<<--- This line ensures the controller has the latest address from the VM
+    // right before showing the dialog.
+    if (viewModel.userAddress != null) {
+      _addressController.text = viewModel.userAddress!;
+    } else {
+      _addressController.clear(); // Clear if no address
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Place Order'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller:
+                      _addressController, // <<<--- MUST USE STATE-LEVEL CONTROLLER
+                  decoration: const InputDecoration(
+                    labelText: 'Delivery Address',
                   ),
-                );
+                ),
+                TextField(
+                  controller:
+                      _instructionsController, // <<<--- MUST USE STATE-LEVEL CONTROLLER
+                  decoration: const InputDecoration(
+                    labelText: 'Delivery Instructions (Optional)',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancel'),
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
               },
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  // Helper method to build a consistent detail row
-  Widget _buildDetailRow(String label, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 20, color: Colors.blueGrey),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 15,
-              color: Colors.blueGrey,
             ),
-          ),
-          const SizedBox(width: 5),
-          Expanded(
-            child: Text(
-              value,
-              style: TextStyle(fontSize: 15, color: Colors.grey[800]),
+            ElevatedButton(
+              child: const Text('Confirm Order'),
+              onPressed: () async {
+                if (_addressController.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(
+                      content: Text('Delivery address cannot be empty!'),
+                    ),
+                  );
+                  return;
+                }
+                Navigator.of(dialogContext).pop(); // Close dialog
+
+                final order = await viewModel.placeOrder(
+                  _addressController.text.trim(),
+                  deliveryInstructions: _instructionsController.text.trim(),
+                );
+
+                if (order != null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Order ${order.id.substring(0, 6)}... placed successfully!',
+                      ),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        viewModel.errorMessage ?? 'Failed to place order.',
+                      ),
+                    ),
+                  );
+                }
+              },
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
-  }
-
-  IconData _getStatusIcon(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return Icons.access_time;
-      case OrderStatus.confirmed:
-        return Icons.check_circle_outline;
-      case OrderStatus.processing:
-        return Icons.settings_outlined;
-      case OrderStatus.shipped:
-        return Icons.local_shipping;
-      case OrderStatus.delivered:
-        return Icons.check_circle;
-      case OrderStatus.cancelled:
-        return Icons.cancel_outlined;
-      case OrderStatus.returned:
-        return Icons.assignment_return;
-      default:
-        return Icons.info_outline;
-    }
-  }
-
-  Color _getStatusColor(OrderStatus status) {
-    switch (status) {
-      case OrderStatus.pending:
-        return Colors.orange;
-      case OrderStatus.confirmed:
-        return Colors.blue;
-      case OrderStatus.processing:
-        return Colors.purple;
-      case OrderStatus.shipped:
-        return Colors.teal;
-      case OrderStatus.delivered:
-        return Colors.green;
-      case OrderStatus.cancelled:
-        return Colors.red;
-      case OrderStatus.returned:
-        return Colors.brown;
-      default:
-        return Colors.grey;
-    }
-  }
-
-  String _getStatusText(OrderStatus status) {
-    return status.toString().split('.').last.toUpperCase();
   }
 }

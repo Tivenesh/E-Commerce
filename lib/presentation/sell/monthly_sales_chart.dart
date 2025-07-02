@@ -3,6 +3,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/foundation.dart'; // Import for listEquals
 
 import '../../data/models/order_item.dart'; // Assuming this path is correct
 import '../../data/services/order_item_repo.dart'; // Assuming this path is correct
@@ -35,7 +36,15 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
   ];
 
   String? _selectedMonthYear; // Stores 'MMMyyyy' e.g., 'Jul2024'
-  List<String> _availableMonthYears = []; // All available 'MMMyyyy' strings
+  List<String> _availableMonthYears =
+      []; // All available 'MMMyyyy' strings for the selected year
+
+  // NEW: Year state variables
+  int? _selectedYear; // Stores the selected year e.g., 2024
+  List<int> _availableYears = []; // All unique years from the data
+
+  // State variable to hold the index of the touched section for tooltip
+  int touchedIndex = -1;
 
   Color _getItemColor(String itemName) {
     if (!_itemColorMap.containsKey(itemName)) {
@@ -44,9 +53,6 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
     }
     return _itemColorMap[itemName]!;
   }
-
-  // State variable to hold the index of the touched section for tooltip
-  int touchedIndex = -1;
 
   @override
   Widget build(BuildContext context) {
@@ -65,52 +71,86 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
           return const Center(child: Text('No sales data available.'));
         }
 
-        // Process data to aggregate sales by month and item type
-        // Map: MonthYear -> ItemName -> TotalSales
-        Map<String, Map<String, double>> monthlySalesByItem = {};
+        // --- MODIFIED: Process data to aggregate sales by Year, Month, and ItemName ---
+        // Map: Year -> MonthYear -> ItemName -> TotalSales
+        Map<int, Map<String, Map<String, double>>> yearlyMonthlySalesByItem =
+            {};
+        Set<int> uniqueYears = {}; // To collect all unique years
+
         for (var order in snapshot.data!) {
           if (order.status == OrderStatus.delivered ||
               order.status == OrderStatus.confirmed) {
             DateTime orderDateTime = order.orderDate.toDate();
+            int year = orderDateTime.year;
             String monthYear = DateFormat('MMMyyyy').format(orderDateTime);
+
+            uniqueYears.add(year); // Add year to unique set
+
+            // Initialize maps if they don't exist
+            yearlyMonthlySalesByItem.putIfAbsent(year, () => {});
+            yearlyMonthlySalesByItem[year]!.putIfAbsent(monthYear, () => {});
 
             for (var cartItem in order.items) {
               final String itemName = cartItem.itemName;
               final double itemTotal = cartItem.quantity * cartItem.itemPrice;
 
-              monthlySalesByItem.update(monthYear, (monthMap) {
-                monthMap.update(
-                  itemName,
-                  (value) => value + itemTotal,
-                  ifAbsent: () => itemTotal,
-                );
-                return monthMap;
-              }, ifAbsent: () => {itemName: itemTotal});
+              yearlyMonthlySalesByItem[year]![monthYear]!.update(
+                itemName,
+                (value) => value + itemTotal,
+                ifAbsent: () => itemTotal,
+              );
             }
           }
         }
 
-        // Sort months and update available months for dropdown
-        List<String> sortedMonths =
-            monthlySalesByItem.keys.toList()..sort((a, b) {
+        // --- NEW/MODIFIED: Initialize/Update Year and Month Selectors ---
+        List<int> sortedYears = uniqueYears.toList()..sort();
+        // Update available years if they have changed or on initial load
+        if (!listEquals(_availableYears, sortedYears)) {
+          _availableYears = sortedYears;
+          // Set initial selected year to the latest available year
+          if (_selectedYear == null && _availableYears.isNotEmpty) {
+            _selectedYear = _availableYears.last;
+          } else if (_selectedYear != null &&
+              !_availableYears.contains(_selectedYear)) {
+            // If previously selected year is no longer available, default to latest
+            _selectedYear =
+                _availableYears.isNotEmpty ? _availableYears.last : null;
+          }
+        }
+
+        // Get monthly sales data for the currently selected year
+        Map<String, Map<String, double>> currentYearMonthlySales =
+            yearlyMonthlySalesByItem[_selectedYear] ?? {};
+
+        List<String> sortedMonthsForSelectedYear =
+            currentYearMonthlySales.keys.toList()..sort((a, b) {
               DateTime dateA = DateFormat('MMMyyyy').parse(a);
               DateTime dateB = DateFormat('MMMyyyy').parse(b);
               return dateA.compareTo(dateB);
             });
 
-        // Update available months if they have changed or on initial load
-        if (_availableMonthYears.isEmpty ||
-            !listEquals(_availableMonthYears, sortedMonths)) {
-          _availableMonthYears = sortedMonths;
-          // Set initial selected month to the latest available month
+        // Update available months for the selected year
+        if (!listEquals(_availableMonthYears, sortedMonthsForSelectedYear)) {
+          _availableMonthYears = sortedMonthsForSelectedYear;
+          // Set initial selected month to the latest available month for the current year
           if (_selectedMonthYear == null && _availableMonthYears.isNotEmpty) {
             _selectedMonthYear = _availableMonthYears.last;
+          } else if (_selectedMonthYear != null &&
+              !_availableMonthYears.contains(_selectedMonthYear)) {
+            // If previously selected month not available for new year, default to latest
+            _selectedMonthYear =
+                _availableMonthYears.isNotEmpty
+                    ? _availableMonthYears.last
+                    : null;
           }
         }
+        // --- END Initialize/Update Selectors ---
 
         // Prepare data for the selected month for the Pie Chart
         Map<String, double> salesForSelectedMonth =
-            monthlySalesByItem[_selectedMonthYear] ?? {};
+            currentYearMonthlySales[_selectedMonthYear] ??
+            {}; // Access via selected year's map
 
         List<PieChartSectionData> sections = [];
         double totalSalesInSelectedMonth = 0;
@@ -175,43 +215,99 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 10),
-                // Month selection dropdown
-                if (_availableMonthYears.isNotEmpty)
-                  Center(
-                    child: DropdownButton<String>(
-                      value: _selectedMonthYear,
-                      onChanged: (String? newValue) {
-                        if (newValue != null) {
-                          setState(() {
-                            _selectedMonthYear = newValue;
-                            touchedIndex =
-                                -1; // Reset touched index when month changes
-                          });
-                        }
-                      },
-                      items:
-                          _availableMonthYears.map<DropdownMenuItem<String>>((
-                            String value,
-                          ) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(
-                                DateFormat(
-                                  'MMMM yyyy',
-                                ).format(DateFormat('MMMyyyy').parse(value)),
-                                style: const TextStyle(fontSize: 16),
-                              ),
-                            );
-                          }).toList(),
-                    ),
-                  ),
+                // NEW: Year and Month selection dropdowns in a Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Year Dropdown
+                    if (_availableYears.isNotEmpty)
+                      Expanded(
+                        child: DropdownButtonFormField<int>(
+                          decoration: InputDecoration(
+                            labelText: 'Year',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
+                          ),
+                          value: _selectedYear,
+                          onChanged: (int? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedYear = newValue;
+                                _selectedMonthYear =
+                                    null; // Reset month when year changes
+                                touchedIndex = -1; // Reset touched index
+                              });
+                            }
+                          },
+                          items:
+                              _availableYears.map<DropdownMenuItem<int>>((
+                                int year,
+                              ) {
+                                return DropdownMenuItem<int>(
+                                  value: year,
+                                  child: Text('$year'),
+                                );
+                              }).toList(),
+                          isExpanded: true,
+                        ),
+                      ),
+                    const SizedBox(width: 10), // Space between dropdowns
+                    // Month Dropdown
+                    if (_availableMonthYears.isNotEmpty)
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          decoration: InputDecoration(
+                            labelText: 'Month',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                            ),
+                          ),
+                          value: _selectedMonthYear,
+                          onChanged: (String? newValue) {
+                            if (newValue != null) {
+                              setState(() {
+                                _selectedMonthYear = newValue;
+                                touchedIndex =
+                                    -1; // Reset touched index when month changes
+                              });
+                            }
+                          },
+                          items:
+                              _availableMonthYears
+                                  .map<DropdownMenuItem<String>>((
+                                    String value,
+                                  ) {
+                                    return DropdownMenuItem<String>(
+                                      value: value,
+                                      child: Text(
+                                        DateFormat('MMMM').format(
+                                          DateFormat('MMMyyyy').parse(value),
+                                        ),
+                                        style: const TextStyle(fontSize: 16),
+                                      ),
+                                    );
+                                  })
+                                  .toList(),
+                          isExpanded: true,
+                        ),
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 20),
+                // Chart or No Data Message
                 if (sections.isEmpty)
                   Container(
                     height: 250,
                     alignment: Alignment.center,
                     child: Text(
-                      'No sales data for ${DateFormat('MMMM yyyy').format(DateFormat('MMMyyyy').parse(_selectedMonthYear!))}',
+                      'No sales data for ${_selectedMonthYear != null ? DateFormat('MMMM y').format(DateFormat('MMMyyyy').parse(_selectedMonthYear!)) : 'the selected period'}',
                       style: TextStyle(
                         color: Colors.grey.shade600,
                         fontSize: 16,
@@ -252,7 +348,7 @@ class _MonthlySalesChartState extends State<MonthlySalesChart> {
                 // Total Sales and Legend
                 if (totalSalesInSelectedMonth > 0) ...[
                   Text(
-                    'Total Sales for ${DateFormat('MMMM yyyy').format(DateFormat('MMMyyyy').parse(_selectedMonthYear!))}: RM${totalSalesInSelectedMonth.toStringAsFixed(2)}',
+                    'Total Sales for ${DateFormat('MMMM y').format(DateFormat('MMMyyyy').parse(_selectedMonthYear!))}: RM${totalSalesInSelectedMonth.toStringAsFixed(2)}',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 18,
