@@ -9,6 +9,11 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+
+  # Stripe and Cloud Functions dependencies
+  flutter_stripe: ^10.1.1
+  cloud_functions: ^5.0.1
+
   firebase_core: ^3.14.0
   firebase_auth: ^5.5.4
   cloud_firestore: ^5.6.8
@@ -20,8 +25,8 @@ dependencies:
   rxdart: ^0.28.0
   supabase_flutter: ^2.0.0
   http: ^1.2.1
-  fl_chart: ^0.68.0 
-  cupertino_icons: ^1.0.6 
+  fl_chart: ^0.68.0
+  cupertino_icons: ^1.0.6
   intl: ^0.20.2
 
 

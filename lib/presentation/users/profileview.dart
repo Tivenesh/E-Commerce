@@ -16,7 +16,7 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
 
-  final SupabaseImageUploader _imageUploader = SupabaseImageUploader();
+
 
   // Local state to manage image upload loading
   bool _isImageUploading = false;
@@ -61,8 +61,11 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _uploadProfileImage() async {
+    // ADD THIS LINE
+    final SupabaseImageUploader _imageUploader = SupabaseImageUploader();
+
     setState(() {
-      _isImageUploading = true; // Start local loading for image upload
+      _isImageUploading = true;
     });
 
     try {

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:e_commerce/presentation/carts/cartvm.dart';
-import 'package:e_commerce/data/models/cart.dart'; // For CartItem type
+import 'package:e_commerce/data/models/cart.dart';
 
-/// The user's shopping cart page (View).
 class CartPage extends StatefulWidget {
-  final VoidCallback? onStartShopping; // New callback
+  final VoidCallback? onStartShopping;
 
-  const CartPage({super.key, this.onStartShopping}); // Update constructor
+  const CartPage({super.key, this.onStartShopping});
 
   @override
   State<CartPage> createState() => _CartPageState();
@@ -81,7 +80,7 @@ class _CartPageState extends State<CartPage> {
           if (viewModel.isLoading) {
             return Center(child: CircularProgressIndicator(color: primaryPink));
           }
-          if (viewModel.errorMessage != null) {
+          if (viewModel.errorMessage != null && viewModel.cartItems.isEmpty) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -116,7 +115,6 @@ class _CartPageState extends State<CartPage> {
                   const SizedBox(height: 30),
                   ElevatedButton.icon(
                     onPressed: () {
-                      // Call the callback to switch to the Shop tab
                       widget.onStartShopping?.call();
                     },
                     icon: const Icon(
@@ -171,47 +169,47 @@ class _CartPageState extends State<CartPage> {
                             ClipRRect(
                               borderRadius: BorderRadius.circular(15.0),
                               child:
-                                  (cartItem.itemImageUrl != null &&
-                                          cartItem.itemImageUrl!.isNotEmpty)
-                                      ? Image.network(
-                                        cartItem.itemImageUrl!,
-                                        width: 90,
-                                        height: 90,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                Container(
-                                                  width: 90,
-                                                  height: 90,
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.grey.shade200,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          15.0,
-                                                        ),
-                                                  ),
-                                                  child: Icon(
-                                                    Icons.broken_image,
-                                                    color: Colors.grey.shade400,
-                                                    size: 40,
-                                                  ),
-                                                ),
-                                      )
-                                      : Container(
-                                        width: 90,
-                                        height: 90,
-                                        decoration: BoxDecoration(
-                                          color: Colors.grey.shade200,
-                                          borderRadius: BorderRadius.circular(
-                                            15.0,
-                                          ),
-                                        ),
-                                        child: Icon(
-                                          Icons.shopping_bag_outlined,
-                                          color: Colors.grey.shade400,
-                                          size: 40,
+                              (cartItem.itemImageUrl != null &&
+                                  cartItem.itemImageUrl!.isNotEmpty)
+                                  ? Image.network(
+                                cartItem.itemImageUrl!,
+                                width: 90,
+                                height: 90,
+                                fit: BoxFit.cover,
+                                errorBuilder:
+                                    (context, error, stackTrace) =>
+                                    Container(
+                                      width: 90,
+                                      height: 90,
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade200,
+                                        borderRadius:
+                                        BorderRadius.circular(
+                                          15.0,
                                         ),
                                       ),
+                                      child: Icon(
+                                        Icons.broken_image,
+                                        color: Colors.grey.shade400,
+                                        size: 40,
+                                      ),
+                                    ),
+                              )
+                                  : Container(
+                                width: 90,
+                                height: 90,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(
+                                    15.0,
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.shopping_bag_outlined,
+                                  color: Colors.grey.shade400,
+                                  size: 40,
+                                ),
+                              ),
                             ),
                             const SizedBox(width: 18),
                             Expanded(
@@ -239,20 +237,20 @@ class _CartPageState extends State<CartPage> {
                                   const SizedBox(height: 12),
                                   Row(
                                     mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
+                                    MainAxisAlignment.spaceBetween,
                                     children: [
                                       Row(
                                         children: [
                                           _QuantityButton(
                                             icon: Icons.remove,
                                             onPressed:
-                                                cartItem.quantity > 1
-                                                    ? () => viewModel
-                                                        .updateCartItemQuantity(
-                                                          cartItem.itemId,
-                                                          cartItem.quantity - 1,
-                                                        )
-                                                    : null,
+                                            cartItem.quantity > 1
+                                                ? () => viewModel
+                                                .updateCartItemQuantity(
+                                              cartItem.itemId,
+                                              cartItem.quantity - 1,
+                                            )
+                                                : null,
                                             buttonColor: buttonColor,
                                           ),
                                           Padding(
@@ -272,10 +270,10 @@ class _CartPageState extends State<CartPage> {
                                             icon: Icons.add,
                                             onPressed:
                                                 () => viewModel
-                                                    .updateCartItemQuantity(
-                                                      cartItem.itemId,
-                                                      cartItem.quantity + 1,
-                                                    ),
+                                                .updateCartItemQuantity(
+                                              cartItem.itemId,
+                                              cartItem.quantity + 1,
+                                            ),
                                             buttonColor: buttonColor,
                                           ),
                                         ],
@@ -359,21 +357,40 @@ class _CartPageState extends State<CartPage> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 25),
+                    const SizedBox(height: 10),
+                    if (viewModel.errorMessage != null && viewModel.cartItems.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10.0),
+                        child: Text(
+                          viewModel.errorMessage!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.red, fontSize: 14),
+                        ),
+                      ),
                     ElevatedButton.icon(
                       onPressed:
-                          viewModel.cartItems.isEmpty || viewModel.isLoading
-                              ? null
-                              : () {
-                                _showPlaceOrderDialog(context, viewModel);
-                              },
-                      icon: const Icon(
+                      viewModel.cartItems.isEmpty || viewModel.isLoading
+                          ? null
+                          : () {
+                        _showPlaceOrderDialog(context, viewModel);
+                      },
+                      icon: viewModel.isLoading
+                          ? Container(
+                        width: 24,
+                        height: 24,
+                        padding: const EdgeInsets.all(2.0),
+                        child: const CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 3,
+                        ),
+                      )
+                          : const Icon(
                         Icons.credit_card,
                         color: Colors.white,
                         size: 26,
                       ),
-                      label: const Text(
-                        'Proceed to Checkout',
+                      label: Text(
+                        viewModel.isLoading ? 'Processing...' : 'Proceed to Checkout',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
@@ -517,7 +534,7 @@ class _CartPageState extends State<CartPage> {
                 elevation: 5,
               ),
               child: const Text(
-                'Place Order',
+                'Pay with Stripe',
                 style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
               ),
               onPressed: () async {
@@ -535,33 +552,27 @@ class _CartPageState extends State<CartPage> {
                   );
                   return;
                 }
+
                 Navigator.of(dialogContext).pop();
 
-                final order = await viewModel.placeOrder(
+                final success = await viewModel.processPaymentAndPlaceOrder(
                   _addressController.text.trim(),
-                  deliveryInstructions: _instructionsController.text.trim(),
+                  _instructionsController.text.trim(),
                 );
 
-                if (order != null) {
+                if (context.mounted && success) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        'Order ${order.id.substring(0, 6)}... placed successfully!',
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                      content: Text('Payment successful and order placed!', style: const TextStyle(color: Colors.white)),
                       backgroundColor: Colors.green.shade600,
                       behavior: SnackBarBehavior.floating,
                       duration: const Duration(seconds: 3),
                     ),
                   );
-                } else {
+                } else if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(
-                        viewModel.errorMessage ??
-                            'Failed to place order. Please try again.',
-                        style: const TextStyle(color: Colors.white),
-                      ),
+                      content: Text(viewModel.errorMessage ?? 'Payment failed. Please try again.', style: const TextStyle(color: Colors.white)),
                       backgroundColor: Colors.red.shade600,
                       behavior: SnackBarBehavior.floating,
                       duration: const Duration(seconds: 4),
@@ -577,11 +588,11 @@ class _CartPageState extends State<CartPage> {
   }
 
   void _showDeleteConfirmationDialog(
-    BuildContext context,
-    CartViewModel viewModel,
-    String itemId,
-    String itemName,
-  ) {
+      BuildContext context,
+      CartViewModel viewModel,
+      String itemId,
+      String itemName,
+      ) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -649,15 +660,15 @@ class _QuantityButton extends StatelessWidget {
       height: 30,
       decoration: BoxDecoration(
         color:
-            onPressed != null
-                ? buttonColor.withOpacity(0.15)
-                : Colors.grey.shade200,
+        onPressed != null
+            ? buttonColor.withOpacity(0.15)
+            : Colors.grey.shade200,
         shape: BoxShape.circle,
         border: Border.all(
           color:
-              onPressed != null
-                  ? buttonColor.withOpacity(0.5)
-                  : Colors.grey.shade300,
+          onPressed != null
+              ? buttonColor.withOpacity(0.5)
+              : Colors.grey.shade300,
           width: 1,
         ),
       ),
