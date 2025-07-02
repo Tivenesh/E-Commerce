@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:e_commerce/presentation/carts/cartvm.dart';
-import 'package:e_commerce/data/models/cart.dart';
+import 'package:e_commerce/data/models/cart.dart'; // For CartItem type
 
 class CartPage extends StatefulWidget {
   final VoidCallback? onStartShopping;
@@ -50,7 +50,7 @@ class _CartPageState extends State<CartPage> {
   Widget build(BuildContext context) {
     const Color primaryPink = Color.fromARGB(255, 200, 100, 163);
     const Color accentPurple = Colors.purpleAccent;
-    final Color buttonColor = const Color.fromARGB(
+    final Color quantityButtonColor = const Color.fromARGB(
       255,
       204,
       80,
@@ -62,6 +62,7 @@ class _CartPageState extends State<CartPage> {
       appBar: AppBar(
         title: const Text(
           'My Cart',
+          // UPDATED: Changed title color back to white
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         flexibleSpace: Container(
@@ -77,7 +78,7 @@ class _CartPageState extends State<CartPage> {
       ),
       body: Consumer<CartViewModel>(
         builder: (context, viewModel, child) {
-          if (viewModel.isLoading) {
+          if (viewModel.isLoading && viewModel.cartItems.isEmpty) {
             return Center(child: CircularProgressIndicator(color: primaryPink));
           }
           if (viewModel.errorMessage != null && viewModel.cartItems.isEmpty) {
@@ -251,7 +252,7 @@ class _CartPageState extends State<CartPage> {
                                               cartItem.quantity - 1,
                                             )
                                                 : null,
-                                            buttonColor: buttonColor,
+                                            buttonColor: quantityButtonColor,
                                           ),
                                           Padding(
                                             padding: const EdgeInsets.symmetric(
@@ -274,7 +275,7 @@ class _CartPageState extends State<CartPage> {
                                               cartItem.itemId,
                                               cartItem.quantity + 1,
                                             ),
-                                            buttonColor: buttonColor,
+                                            buttonColor: quantityButtonColor,
                                           ),
                                         ],
                                       ),
@@ -364,7 +365,7 @@ class _CartPageState extends State<CartPage> {
                         child: Text(
                           viewModel.errorMessage!,
                           textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.red, fontSize: 14),
+                          style: const TextStyle(color: Colors.red, fontSize: 14),
                         ),
                       ),
                     ElevatedButton.icon(
@@ -391,13 +392,13 @@ class _CartPageState extends State<CartPage> {
                       ),
                       label: Text(
                         viewModel.isLoading ? 'Processing...' : 'Proceed to Checkout',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: buttonColor,
+                        backgroundColor: Colors.deepOrangeAccent,
                         foregroundColor: Colors.white,
                         minimumSize: const Size.fromHeight(60),
                         shape: RoundedRectangleBorder(
@@ -424,6 +425,7 @@ class _CartPageState extends State<CartPage> {
     } else {
       _addressController.clear();
     }
+    _instructionsController.clear();
 
     showDialog(
       context: context,
@@ -563,7 +565,7 @@ class _CartPageState extends State<CartPage> {
                 if (context.mounted && success) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Payment successful and order placed!', style: const TextStyle(color: Colors.white)),
+                      content: const Text('Payment successful and order placed!', style: TextStyle(color: Colors.white)),
                       backgroundColor: Colors.green.shade600,
                       behavior: SnackBarBehavior.floating,
                       duration: const Duration(seconds: 3),
