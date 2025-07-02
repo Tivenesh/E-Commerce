@@ -1,4 +1,4 @@
-// lib/main.dart (Final Corrected Version)
+// lib/main.dart (Final Fix for Web Initialization)
 
 import 'package:e_commerce/data/services/cart_repo.dart';
 import 'package:e_commerce/data/services/firebase_auth_service.dart';
@@ -31,8 +31,9 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Stripe with your Publishable Key
-  Stripe.publishableKey = 'pk_test_51RgRX7Q00D5aT2cEnv5Ks2vPnc2X8FLLILma4WN9wxd11dz0G1SafCLaQMyH16NjtxGRZhlW8g6sQ8YNk0sPg9AF00VZjZ2hO0';
+  // MOVED: Stripe initialization will now happen inside the MyApp widget
+  // Stripe.publishableKey = 'pk_test_...';
+
   // Initialize Firebase
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
@@ -46,11 +47,24 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
   @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    // MOVED: Initialize Stripe here. This runs after the app's widgets start building.
+    Stripe.publishableKey = 'pk_test_51RgRX7Q00D5aT2cEnv5Ks2vPnc2X8FLLILma4WN9wxd11dz0G1SafCLaQMyH16NjtxGRZhlW8g6sQ8YNk0sPg9AF00VZjZ2hO0';
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // All of your providers remain the same
     final UserRepo firebaseUserService = UserRepo();
     final ItemRepo firebaseItemService = ItemRepo();
     final CartRepo firebaseCartService = CartRepo();
