@@ -1,4 +1,5 @@
 // lib/presentation/users/profileview.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:e_commerce/presentation/users/profilevm.dart';
@@ -16,9 +17,6 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _addressController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
 
-
-
-  // Local state to manage image upload loading
   bool _isImageUploading = false;
 
   @override
@@ -28,7 +26,6 @@ class _ProfilePageState extends State<ProfilePage> {
       final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
       _initializeControllers(viewModel);
       viewModel.addListener(_updateControllers);
-      // Ensure profile data is fetched when the page loads
       viewModel.fetchUserProfile();
     });
   }
@@ -61,35 +58,38 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _uploadProfileImage() async {
-    // ADD THIS LINE
-    final SupabaseImageUploader _imageUploader = SupabaseImageUploader();
-
     setState(() {
       _isImageUploading = true;
     });
 
     try {
-      final url = await _imageUploader.pickAndUploadImage();
+      final SupabaseImageUploader imageUploader = SupabaseImageUploader();
+      final url = await imageUploader.pickAndUploadImage();
 
       if (url != null) {
         final viewModel = Provider.of<ProfileViewModel>(context, listen: false);
-        // This will set viewModel.isLoading internally if updateProfile does so
         await viewModel.updateProfile(profileImageUrl: url);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile image updated successfully!')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile image updated successfully!')),
+          );
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Image upload cancelled or failed.')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image upload cancelled or failed.')),
+          );
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error uploading image: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error uploading image: $e'))
+        );
+      }
     } finally {
       setState(() {
-        _isImageUploading = false; // End local loading
+        _isImageUploading = false;
       });
     }
   }
@@ -99,7 +99,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final String? currentImageUrlInViewModel =
         viewModel.currentUserProfile?.profileImageUrl;
 
-    // viewModel.updateProfile will handle its own loading state.
     await viewModel.updateProfile(
       username: _usernameController.text.trim(),
       address: _addressController.text.trim(),
@@ -107,11 +106,11 @@ class _ProfilePageState extends State<ProfilePage> {
       profileImageUrl: currentImageUrlInViewModel,
     );
 
-    if (viewModel.errorMessage == null) {
+    if (mounted && viewModel.errorMessage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Profile updated successfully!')),
       );
-    } else {
+    } else if (mounted) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(viewModel.errorMessage!)));
@@ -132,25 +131,22 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Consumer<ProfileViewModel>(
       builder: (context, viewModel, child) {
-        // Combined loading state: either initial data loading or a save operation
         final bool showOverallLoadingOverlay =
             viewModel.isLoading && viewModel.currentUserProfile != null;
         final bool showInitialLoading =
             viewModel.isLoading && viewModel.currentUserProfile == null;
 
         if (showInitialLoading) {
-          // Show full screen loader only if profile data hasn't loaded yet
           return const Center(
             child: CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(
                 Color(0xFF6200EE),
-              ), // A common app primary color
+              ),
             ),
           );
         }
         if (viewModel.errorMessage != null &&
             viewModel.currentUserProfile == null) {
-          // Show error if initial load failed
           return Center(
             child: Padding(
               padding: const EdgeInsets.all(24.0),
@@ -167,7 +163,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed:
-                        () => viewModel.fetchUserProfile(), // Retry button
+                        () => viewModel.fetchUserProfile(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF6200EE),
                       foregroundColor: Colors.white,
@@ -198,44 +194,41 @@ class _ProfilePageState extends State<ProfilePage> {
                 32.0,
                 24.0,
                 24.0,
-              ), // More top padding
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Removed the "My Profile" Text widget here, as HomeScreen AppBar handles the title
                   Center(
                     child: GestureDetector(
                       onTap:
-                          _isImageUploading
-                              ? null
-                              : _uploadProfileImage, // Disable tap during upload
+                      _isImageUploading
+                          ? null
+                          : _uploadProfileImage,
                       child: Stack(
                         children: [
                           CircleAvatar(
-                            radius: 75, // Slightly larger avatar
+                            radius: 75,
                             backgroundColor: const Color(
                               0xFFE0E0E0,
-                            ), // Lighter grey for placeholder
+                            ),
                             backgroundImage:
-                                currentProfileImageUrl != null &&
-                                        currentProfileImageUrl.isNotEmpty
-                                    ? NetworkImage(currentProfileImageUrl)
-                                    : null,
+                            currentProfileImageUrl != null &&
+                                currentProfileImageUrl.isNotEmpty
+                                ? NetworkImage(currentProfileImageUrl)
+                                : null,
                             child:
-                                (currentProfileImageUrl == null ||
-                                        currentProfileImageUrl.isEmpty)
-                                    ? const Icon(
-                                      // Added const
-                                      Icons
-                                          .person_rounded, // Filled icon for stronger presence
-                                      size: 75,
-                                      color: Color(
-                                        0xFFB0B0B0,
-                                      ), // Softer grey for icon
-                                    )
-                                    : null,
+                            (currentProfileImageUrl == null ||
+                                currentProfileImageUrl.isEmpty)
+                                ? const Icon(
+                              Icons
+                                  .person_rounded,
+                              size: 75,
+                              color: Color(
+                                0xFFB0B0B0,
+                              ),
+                            )
+                                : null,
                           ),
-                          // Show a small loader on the avatar during image upload
                           if (_isImageUploading)
                             Positioned.fill(
                               child: Container(
@@ -256,9 +249,8 @@ class _ProfilePageState extends State<ProfilePage> {
                             right: 0,
                             child: Container(
                               decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF6200EE,
-                                ), // Use primary brand color
+                                // UPDATED: Changed color to orange
+                                color: Colors.deepOrangeAccent,
                                 shape: BoxShape.circle,
                                 border: Border.all(
                                   color: Colors.white,
@@ -268,9 +260,10 @@ class _ProfilePageState extends State<ProfilePage> {
                               child: const Padding(
                                 padding: EdgeInsets.all(
                                   8.0,
-                                ), // Slightly larger tap area
+                                ),
                                 child: Icon(
                                   Icons.camera_alt,
+                                  // UPDATED: Icon is now white
                                   color: Colors.white,
                                   size: 20,
                                 ),
@@ -283,14 +276,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(
                     height: 40,
-                  ), // More spacing for visual breathing room
+                  ),
 
                   _buildTextField(
                     _usernameController,
                     'Username',
                     Icons.person_outline,
                   ),
-                  const SizedBox(height: 20), // Consistent vertical spacing
+                  const SizedBox(height: 20),
                   _buildTextField(
                     _addressController,
                     'Address',
@@ -304,66 +297,59 @@ class _ProfilePageState extends State<ProfilePage> {
                     TextInputType.phone,
                   ),
 
-                  const SizedBox(height: 40), // Increased spacing before button
+                  const SizedBox(height: 40),
 
                   ElevatedButton(
-                    // Disable if ViewModel is currently loading (e.g., saving) or if image is uploading
                     onPressed:
-                        (viewModel.isLoading || _isImageUploading)
-                            ? null
-                            : _saveProfile,
+                    (viewModel.isLoading || _isImageUploading)
+                        ? null
+                        : _saveProfile,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(
-                        0xFF6200EE,
-                      ), // Use primary brand color
+                      // UPDATED: Changed color to orange
+                      backgroundColor: Colors.deepOrangeAccent,
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         vertical: 18,
-                      ), // Taller button
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(
                           12,
-                        ), // Slightly more rounded for a friendly feel
+                        ),
                       ),
-                      elevation: 4, // Subtle shadow for depth
-                      shadowColor: const Color(
-                        0xFFF44336,
-
-                      ).withOpacity(0.3), // Shadow matching button color
+                      elevation: 4,
+                      // UPDATED: Shadow color to match
+                      shadowColor: Colors.deepOrangeAccent.withOpacity(0.3),
                     ),
                     child:
-                        (viewModel.isLoading || _isImageUploading)
-                            ? const SizedBox(
-                              // Added const
-                              width: 24, // Larger loader
-                              height: 24,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth:
-                                    2.5, // Slightly thicker progress indicator
-                              ),
-                            )
-                            : const Text(
-                              // Added const
-                              'Save Changes',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ), // Bolder text
-                            ),
+                    (viewModel.isLoading || _isImageUploading)
+                        ? const SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth:
+                        2.5,
+                      ),
+                    )
+                        : const Text(
+                      'Save Changes',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 30), // Bottom padding
+                  const SizedBox(height: 30),
                 ],
               ),
             ),
-            // Conditional overlay for general loading (e.g., saving other profile details)
             if (showOverallLoadingOverlay &&
-                !_isImageUploading) // Don't show if only image is uploading
+                !_isImageUploading)
               Positioned.fill(
                 child: Container(
                   color: Colors.black.withOpacity(
                     0.3,
-                  ), // Semi-transparent overlay
+                  ),
                   child: const Center(
                     child: CircularProgressIndicator(
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -378,56 +364,53 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon, [
-    TextInputType keyboardType = TextInputType.text,
-  ]) {
+      TextEditingController controller,
+      String label,
+      IconData icon, [
+        TextInputType keyboardType = TextInputType.text,
+      ]) {
     return TextField(
       controller: controller,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: const TextStyle(
-          // Added const
-          color: Color(0xFF888888), // Medium grey for labels
+          color: Color(0xFF888888),
           fontWeight: FontWeight.w500,
         ),
         floatingLabelBehavior:
-            FloatingLabelBehavior.auto, // Label moves above on focus
+        FloatingLabelBehavior.auto,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide.none, // Still no default border
+          borderSide: BorderSide.none,
         ),
         filled: true,
-        fillColor: const Color(0xFFFFFFFF), // White fill for text fields
+        fillColor: const Color(0xFFFFFFFF),
         prefixIcon: Icon(
           icon,
           color: const Color(0xFF888888),
-        ), // Match label color
+        ),
         contentPadding: const EdgeInsets.symmetric(
           vertical: 16,
           horizontal: 16,
-        ), // More internal padding
+        ),
         enabledBorder: OutlineInputBorder(
-          // Subtle border when enabled
           borderRadius: BorderRadius.circular(10),
           borderSide: BorderSide(color: Colors.grey.withOpacity(0.3), width: 1),
         ),
         focusedBorder: OutlineInputBorder(
-          // Stronger border on focus
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(
-            color: Color(0xFFF44336),
+            color: Color(0xFF6200EE),
             width: 2,
-          ), // Brand color border on focus
+          ),
         ),
       ),
       keyboardType: keyboardType,
       style: const TextStyle(
-        color: Color(0xFF333333), // Dark text for input
+        color: Color(0xFF333333),
         fontSize: 16,
       ),
-      cursorColor: const Color(0xFFF44336), // Cursor matches brand color
+      cursorColor: const Color(0xFF6200EE),
     );
   }
 }
