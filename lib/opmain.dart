@@ -26,15 +26,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 // Firebase options
 import 'firebase_options.dart';
 
-
 // Models (assuming these are in your project)
 
 // Utils
 import 'package:e_commerce/utils/logger.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  Stripe.publishableKey = 'pk_test_51RgRX7Q00D5aT2cEnv5Ks2vPnc2X8FLLILma4WN9wxd11dz0G1SafCLaQMyH16NjtxGRZhlW8g6sQ8YNk0sPg9AF00VZjZ2hO0';
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await Supabase.initialize(

@@ -6,32 +6,20 @@ import 'package:e_commerce/utils/logger.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'dart:async';
+import 'dart:async'; // For StreamSubscription
 
-import 'package:e_commerce/data/services/firebase_auth_service.dart';
-import 'package:e_commerce/data/services/user_repo.dart';
-
-// An enum to represent the different sorting options available.
-// This provides a type-safe way to handle sort logic.
-enum SortType {
-  newest,
-  oldest,
-  priceLowToHigh,
-  priceHighToLow,
-  nameAZ,
-  nameZA
-}
+import 'package:e_commerce/data/services/firebase_auth_service.dart'; // Import FirebaseAuthService
+import 'package:e_commerce/data/services/user_repo.dart'; // Needed for FirebaseAuthService
 
 class ItemListViewModel extends ChangeNotifier {
-  // Dependencies are injected for testability and separation of concerns.
   final ItemRepo _itemRepository;
   final AddItemToCartUseCase _addItemToCartUseCase;
-  final FirebaseAuthService _firebaseAuthService;
+  final FirebaseAuthService
+  _firebaseAuthService; // NEW: Auth service dependency
 
-  // --- State Properties ---
-  List<Item> _allItems = []; // Holds the original, unsorted list of all items from the database.
-  List<Item> _filteredItems = []; // Holds the final list to be displayed after filtering and sorting.
-  List<Item> get items => _filteredItems; // Public getter for the UI to read.
+  List<Item> _allItems = [];
+  List<Item> _filteredItems = [];
+  List<Item> get items => _filteredItems;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -40,101 +28,138 @@ class ItemListViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   String _searchQuery = '';
+  String _filterType = 'All'; // Retained: Filter type functionality
 
-  // Holds the currently selected sort order. It defaults to 'newest'.
-  SortType _currentSortType = SortType.newest;
-  SortType get currentSortType => _currentSortType;
-
-  // A stream controller to handle search queries with a debounce to avoid excessive filtering.
   final _searchQueryController = BehaviorSubject<String>();
   Stream<String> get searchQueryStream => _searchQueryController.stream;
 
-  // A cache to store seller names to avoid repeated database lookups.
   final Map<String, String> _sellerNamesCache = {};
 
-  // Stream subscriptions to manage real-time data listeners.
-  StreamSubscription<List<Item>>? _itemsStreamSubscription;
-  StreamSubscription<firebase_auth.User?>? _userAuthSubscription;
+  StreamSubscription<List<Item>>?
+  _itemsStreamSubscription; // To manage item stream
+  StreamSubscription<firebase_auth.User?>?
+  _userAuthSubscription; // NEW: To listen to auth state changes
 
+  String get filterType => _filterType; // Retained: Getter for filter type
 
   ItemListViewModel(
-      this._itemRepository,
-      this._addItemToCartUseCase,
-      this._firebaseAuthService,
-      ) {
+    this._itemRepository,
+    this._addItemToCartUseCase,
+    this._firebaseAuthService, // NEW: Require FirebaseAuthService in constructor
+  ) {
     appLogger.d('ItemListViewModel: Constructor called. Initializing streams.');
-    _initStreams();
+    _initStreams(); // NEW: Call _initStreams to set up auth and item listeners
   }
 
-  /// Sets up all the real-time listeners for the ViewModel.
+  // NEW: Centralized stream initialization and management
   void _initStreams() {
     _isLoading = true;
     notifyListeners();
 
-    // Listens for changes in user authentication (login/logout).
+    // Listen to Firebase Auth state changes
     _userAuthSubscription = _firebaseAuthService.authStateChanges.listen((
-        firebase_auth.User? user,
-        ) async {
+      firebase_auth.User? user,
+    ) async {
       if (user != null) {
-        await _fetchAndSortAllItems();
+        appLogger.d(
+          'ItemListViewModel: Auth state changed - User logged IN: ${user.uid}',
+        );
+        // User logged in, refresh all data
+        await _fetchAndFilterAllItems(); // Re-fetch and filter for the new user
       } else {
-        // If the user logs out, clear all data.
+        appLogger.d(
+          'ItemListViewModel: Auth state changed - User logged OUT. Clearing item data.',
+        );
+        // User logged out, clear all items and reset state
         _allItems = [];
         _filteredItems = [];
         _isLoading = false;
         _errorMessage = null;
-        _itemsStreamSubscription?.cancel();
-        _itemsStreamSubscription = null;
+        _itemsStreamSubscription?.cancel(); // Cancel any existing item stream
+        _itemsStreamSubscription = null; // Clear subscription reference
         notifyListeners();
       }
     });
 
-    // Initial data fetch when the app starts.
-    _fetchAndSortAllItems();
+    // Initial fetch of items when ViewModel is created.
+    // This handles the initial state (whether logged in or not).
+    // The _userAuthSubscription will then handle subsequent login/logout events.
+    _fetchAndFilterAllItems();
 
-    // Listens to the search query stream with a 300ms debounce.
     _searchQueryController
         .debounceTime(const Duration(milliseconds: 300))
         .listen(
           (query) {
-        _searchQuery = query;
-        _applyFiltersAndSorting(); // Re-run the filter/sort logic when the query changes.
-      },
-    );
+            _searchQuery = query;
+            _filterItems(); // Re-filter when search query changes
+            notifyListeners();
+            appLogger.d(
+              'ItemListViewModel: Search query updated: $_searchQuery',
+            );
+          },
+          onError: (error) {
+            appLogger.e(
+              'ItemListViewModel: Error in search query stream: $error',
+              error: error,
+            );
+          },
+        );
   }
 
-  /// Fetches all items from the repository and triggers the filtering/sorting process.
-  Future<void> _fetchAndSortAllItems() async {
+  // Consolidated method to fetch all items and then filter them
+  Future<void> _fetchAndFilterAllItems() async {
     _isLoading = true;
+    _errorMessage = null;
     notifyListeners();
 
-    _itemsStreamSubscription?.cancel();
+    _itemsStreamSubscription
+        ?.cancel(); // Cancel previous subscription before setting up new one
+    appLogger.d('ItemListViewModel: Subscribing to all items stream.');
     _itemsStreamSubscription = _itemRepository.getItems().listen(
-          (items) async {
+      (items) async {
         _allItems = items;
-        await _fetchSellerNames();
-        _applyFiltersAndSorting();
+        await _fetchSellerNames(); // Ensure seller names are fetched
+        _filterItems(); // Filter items based on current search/filter and user
         _isLoading = false;
+        _errorMessage = null;
         notifyListeners();
+        appLogger.d(
+          'ItemListViewModel: All items updated and filtered. Total: ${items.length}, Filtered: ${_filteredItems.length}',
+        );
       },
       onError: (error, stack) {
-        _errorMessage = 'Failed to load items: ${error.toString()}';
         _isLoading = false;
+        _errorMessage = 'Failed to load items: ${error.toString()}';
         notifyListeners();
+        appLogger.e(
+          'ItemListViewModel: Error fetching items stream: $error',
+          error: error,
+          stackTrace: stack,
+        );
       },
     );
   }
 
-  /// Fetches and caches the usernames of sellers for display on the item cards.
   Future<void> _fetchSellerNames() async {
     final uniqueSellerIds = _allItems.map((item) => item.sellerId).toSet();
     for (final sellerId in uniqueSellerIds) {
       if (!_sellerNamesCache.containsKey(sellerId)) {
         try {
-          final doc = await FirebaseFirestore.instance.collection('users').doc(sellerId).get();
-          _sellerNamesCache[sellerId] = doc.data()?['username'] ?? 'Unknown';
+          final doc =
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(sellerId)
+                  .get();
+          final name = doc.data()?['username'] ?? 'Unknown';
+          _sellerNamesCache[sellerId] = name;
+          appLogger.d(
+            'ItemListViewModel: Fetched seller name for $sellerId: $name',
+          );
         } catch (e) {
           _sellerNamesCache[sellerId] = 'Unknown';
+          appLogger.e(
+            'ItemListViewModel: Error fetching seller name for $sellerId: $e',
+          );
         }
       }
     }
@@ -144,68 +169,96 @@ class ItemListViewModel extends ChangeNotifier {
     return _sellerNamesCache[sellerId] ?? 'Unknown';
   }
 
-  /// This is the core method that handles both searching and sorting.
-  void _applyFiltersAndSorting() {
-    List<Item> tempItems;
+  void _filterItems() {
+    appLogger.d(
+      'ItemListViewModel: Filter Debug: Entering _filterItems. Query: "$_searchQuery", FilterType: "$_filterType"',
+    );
+    // MODIFIED: Use _firebaseAuthService to get current user ID
+    final currentUserId = _firebaseAuthService.currentUser?.uid;
 
-    // 1. Apply the search query filter first.
+    // Only show items not sold by the current user
+    List<Item> visibleItems =
+        _allItems.where((item) => item.sellerId != currentUserId).toList();
+    appLogger.d(
+      'ItemListViewModel: Filter Debug: ${visibleItems.length} visible items before query filtering.',
+    );
+
     if (_searchQuery.isEmpty) {
-      tempItems = List.from(_allItems);
+      _filteredItems = visibleItems;
+      appLogger.d(
+        'ItemListViewModel: Filter Debug: Search query empty, showing all visible items.',
+      );
     } else {
       final queryLower = _searchQuery.toLowerCase();
-      tempItems = _allItems.where((item) {
-        final sellerName = getSellerName(item.sellerId).toLowerCase();
-        final itemNameLower = item.name.toLowerCase();
-        return itemNameLower.contains(queryLower) || sellerName.contains(queryLower);
-      }).toList();
-    }
+      _filteredItems =
+          visibleItems.where((item) {
+            final sellerName = getSellerName(item.sellerId).toLowerCase();
+            final itemNameLower = item.name.toLowerCase();
+            final itemDescriptionLower = item.description.toLowerCase();
+            final itemCategoryLower = item.category.toLowerCase();
 
-    // 2. Apply the selected sort order on the filtered list.
-    switch (_currentSortType) {
-      case SortType.newest:
-        tempItems.sort((a, b) => b.listedAt.compareTo(a.listedAt));
-        break;
-      case SortType.oldest:
-        tempItems.sort((a, b) => a.listedAt.compareTo(b.listedAt));
-        break;
-      case SortType.priceLowToHigh:
-        tempItems.sort((a, b) => a.price.compareTo(b.price));
-        break;
-      case SortType.priceHighToLow:
-        tempItems.sort((a, b) => b.price.compareTo(a.price));
-        break;
-      case SortType.nameAZ:
-        tempItems.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-        break;
-      case SortType.nameZA:
-        tempItems.sort((a, b) => b.name.toLowerCase().compareTo(a.name.toLowerCase()));
-        break;
+            bool matches = false;
+            // Retained: Filter logic based on _filterType
+            switch (_filterType) {
+              case 'All':
+                matches =
+                    itemNameLower.contains(queryLower) ||
+                    itemDescriptionLower.contains(queryLower) ||
+                    itemCategoryLower.contains(queryLower) ||
+                    sellerName.contains(queryLower);
+                break;
+              case 'Seller':
+                matches = sellerName.contains(queryLower);
+                break;
+              case 'Item':
+                matches =
+                    itemNameLower.contains(queryLower) ||
+                    itemDescriptionLower.contains(queryLower);
+                break;
+              case 'Category':
+                matches = itemCategoryLower.contains(queryLower);
+                break;
+              default:
+                matches = true; // Should not happen with defined types
+                appLogger.w(
+                  'ItemListViewModel: Filter Debug: Unknown filter type: $_filterType',
+                );
+            }
+            appLogger.d(
+              'ItemListViewModel: Filter Debug: Item "${item.name}" (Seller: "$sellerName", Category: "${item.category}") - Matches: $matches for query "$queryLower" with filter "$_filterType"',
+            );
+            return matches;
+          }).toList();
+      appLogger.d(
+        'ItemListViewModel: Filter Debug: Filtered down to ${_filteredItems.length} items.',
+      );
     }
-
-    // Update the final list that the UI displays.
-    _filteredItems = tempItems;
-    notifyListeners(); // Tell the UI to rebuild.
+    notifyListeners(); // Ensure listeners are notified after filtering
   }
 
-  /// Public method called by the UI when the user chooses a new sort option.
-  void updateSortOrder(SortType sortType) {
-    if (_currentSortType != sortType) {
-      _currentSortType = sortType;
-      _applyFiltersAndSorting(); // Re-apply the logic with the new sort type.
-    }
-  }
-
-  /// Called by the UI's search field to update the search query stream.
   void updateSearchQuery(String query) {
     _searchQueryController.add(query);
   }
 
-  /// Handles the business logic of adding an item to the cart.
+  void updateFilterType(String type) {
+    if (_filterType != type) {
+      _filterType = type;
+      _filterItems(); // Re-filter items based on new filter type
+      notifyListeners();
+      appLogger.d('ItemListViewModel: Filter type updated to: $_filterType');
+    }
+  }
+
   Future<void> addItemToCart(String itemId, int quantity) async {
+    // MODIFIED: Use _firebaseAuthService to get current user ID
     final String? userId = _firebaseAuthService.currentUser?.uid;
     if (userId == null) {
-      _errorMessage = 'User not authenticated. Please log in to add items to cart.';
+      _errorMessage =
+          'User not authenticated. Please log in to add items to cart.';
       notifyListeners();
+      appLogger.w(
+        'ItemListViewModel: Attempted to add to cart without authenticated user.',
+      );
       return;
     }
 
@@ -215,21 +268,27 @@ class ItemListViewModel extends ChangeNotifier {
 
     try {
       await _addItemToCartUseCase(userId, itemId, quantity);
-    } catch (e) {
-      _errorMessage = 'Failed to add item to cart: ${e.toString()}';
-    } finally {
       _isLoading = false;
       notifyListeners();
+      appLogger.i(
+        'ItemListViewModel: Added item $itemId to cart for user $userId.',
+      );
+    } catch (e) {
+      _isLoading = false;
+      _errorMessage = 'Failed to add item to cart: ${e.toString()}';
+      notifyListeners();
+      appLogger.e('ItemListViewModel: Error adding item to cart: $e', error: e);
     }
   }
 
-  /// Cleans up resources when the ViewModel is no longer needed.
   @override
   void dispose() {
-    appLogger.d('ItemListViewModel: dispose() called. Cancelling all subscriptions.');
+    appLogger.d(
+      'ItemListViewModel: dispose() called. Cancelling all subscriptions.',
+    );
     _searchQueryController.close();
-    _itemsStreamSubscription?.cancel();
-    _userAuthSubscription?.cancel();
+    _itemsStreamSubscription?.cancel(); // NEW: Cancel item stream subscription
+    _userAuthSubscription?.cancel(); // NEW: Cancel auth state subscription
     super.dispose();
   }
 }
